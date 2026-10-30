@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>KlangEQ</title>
+<style>
+  body {
+    --bg: #2b2c31; --bg2: #232428; --well: #1c1d21; --line: #3a3b42; --line-strong: #5a5b64;
+    --text: #f1f1f5; --muted: #a9abb8; --accent: #3fc1b0; --danger: #ff5f8a; --thumb: #e9e9ee; --on-accent: #0f1f1c;
+    --raise: 5px 5px 12px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.035);
+    --raise-sm: 2px 2px 5px rgba(0,0,0,0.5), -2px -2px 4px rgba(255,255,255,0.04);
+    --inset: inset 3px 3px 7px rgba(0,0,0,0.55), inset -2px -2px 5px rgba(255,255,255,0.035);
+    --face: linear-gradient(145deg, #36373d, #25262a);
+  }
+  body.light {
+    --bg: #e3e5ea; --bg2: #d6d9df; --well: #cfd2d9; --line: #c3c6ce; --line-strong: #9da1ad;
+    --text: #1d1f25; --muted: #575b67; --danger: #d93a66; --thumb: #ffffff;
+    --raise: 5px 5px 12px rgba(120,125,140,0.5), -4px -4px 10px rgba(255,255,255,0.85);
+    --raise-sm: 2px 2px 5px rgba(120,125,140,0.5), -2px -2px 4px rgba(255,255,255,0.85);
+    --inset: inset 3px 3px 7px rgba(120,125,140,0.5), inset -2px -2px 5px rgba(255,255,255,0.85);
+    --face: linear-gradient(145deg, #f2f3f6, #d5d7dd);
+  }
+  * { box-sizing: border-box; }
+  *:not(input, textarea) { -webkit-user-select: none; user-select: none; cursor: default; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 400 13px "Avenir Next", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    letter-spacing: 0.02em;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  [hidden] { display: none !important; }
+
+  header { display: flex; align-items: flex-start; padding: 0 16px; height: 46px; }
+  header .side { flex: 1; min-width: 0; padding-top: 14px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header .side.right { display: flex; justify-content: flex-end; padding-top: 10px; overflow: visible; }
+  .preset-tab { width: 290px; height: 42px; flex: none; display: flex; align-items: center; padding: 0 30px; background: var(--bg2);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 24px 100%); }
+  #presetName { flex: 1; min-width: 0; text-align: center; font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  button.nav { border: 0; background: none; box-shadow: none; width: 28px; height: 28px; padding: 0; font-size: 20px; line-height: 1; color: var(--text); }
+  button.nav:hover { color: var(--accent); }
+  button.nav:active { box-shadow: none; }
+
+  #error { display: none; margin: 8px 16px 0; background: color-mix(in srgb, var(--danger) 14%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); color: var(--danger); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.4; }
+  #error.show { display: block; }
+
+  nav { display: flex; justify-content: center; gap: 4px; padding: 10px 16px 0; }
+  nav button { border: 0; background: none; box-shadow: none; color: var(--muted); height: 26px; padding: 0 12px; border-radius: 13px; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--accent); background: var(--bg2); box-shadow: var(--inset); }
+
+  main { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px 10px; }
+  body.off main .dim { opacity: 0.75; filter: saturate(0.3); }
+  body.off #device { color: var(--danger); }
+  footer { text-align: center; color: var(--muted); font-size: 9px; font-weight: 500; letter-spacing: 0.7em; padding: 6px 0 10px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .grow { flex: 1; min-width: 0; }
+  .muted { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  h2 { margin: 0 0 8px; font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.14em; }
+  strong { font-weight: 600; }
+
+  select, button, input[type=text], input[type=number], textarea {
+    font: inherit; letter-spacing: inherit; color: var(--text); border: 0; border-radius: 14px; height: 28px; padding: 0 12px; outline: none;
+  }
+  button { background: var(--face); box-shadow: var(--raise-sm); font-size: 12px; }
+  button:hover { color: var(--accent); }
+  button:active { box-shadow: var(--inset); }
+  button.primary { color: var(--accent); }
+  button.icon { width: 28px; padding: 0; flex: none; }
+  button.on { color: var(--danger); box-shadow: var(--inset); }
+  button:disabled, select:disabled, input:disabled { opacity: 0.4; }
+  button:disabled:hover { color: var(--text); }
+  select, input[type=text], input[type=number], textarea { background: var(--well); box-shadow: var(--inset); }
+  select { min-width: 0; -webkit-appearance: none; appearance: none; padding-right: 24px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 13px) 12px, calc(100% - 9px) 12px; background-size: 4px 4px; background-repeat: no-repeat; }
+  input[type=text], input[type=number], textarea { cursor: text; min-width: 0; }
+  input[type=number] { padding: 0 8px; width: 100%; border-radius: 8px; font-variant-numeric: tabular-nums; }
+  input[type=number]::-webkit-inner-spin-button { display: none; }
+  textarea { width: 100%; height: 150px; padding: 8px 10px; border-radius: 10px; resize: none; font: 12px ui-monospace, Menlo, monospace; line-height: 1.5; letter-spacing: 0; }
+  select:focus-visible, button:focus-visible, input[type=text]:focus, input[type=number]:focus, textarea:focus, .round:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+  .seg { display: flex; border-radius: 15px; padding: 2px; background: var(--well); box-shadow: var(--inset); }
+  .seg button { background: none; box-shadow: none; color: var(--muted); height: 26px; border-radius: 13px; font-size: 12px; }
+  .seg button.active { background: var(--face); box-shadow: var(--raise-sm); color: var(--accent); }
+
+  .switch { position: relative; width: 40px; height: 22px; flex: none; display: inline-block; }
+  .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; width: 100%; height: 100%; }
+  .switch span { position: absolute; inset: 0; border-radius: 11px; background: var(--well); box-shadow: var(--inset); pointer-events: none; }
+  .switch span::after { content: ""; position: absolute; top: 4px; left: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--line-strong); transition: transform 0.15s, background 0.15s, box-shadow 0.15s; }
+  .switch input:checked + span::after { transform: translateX(18px); background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .switch input:focus-visible + span { outline: 1px solid var(--accent); outline-offset: 2px; }
+  .switch.big { width: 48px; height: 26px; }
+  .switch.big span { border-radius: 13px; }
+  .switch.big span::after { width: 18px; height: 18px; }
+  .switch.big input:checked + span::after { transform: translateX(22px); }
+  label.check { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  .panel { background: var(--bg); border-radius: 14px; box-shadow: var(--raise); }
+  .pad { padding: 14px; }
+  canvas#graph { width: 100%; height: 216px; display: block; border-radius: 6px; background: linear-gradient(180deg, var(--bg2), var(--well)); box-shadow: var(--inset); }
+
+  /* Pegelanzeigen und großer Regler */
+  .master { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 0; }
+  .master .col { display: flex; flex-direction: column; gap: 14px; }
+  .meter { display: grid; grid-template-columns: auto auto; grid-template-rows: 150px auto; column-gap: 8px; row-gap: 16px; }
+  .meter.out { direction: rtl; }
+  .meter.out > * { direction: ltr; }
+  .meter .bars { display: flex; gap: 5px; position: relative; padding: 0 2px; }
+  .meter .bar { width: 13px; height: 100%; position: relative; border-radius: 2px; overflow: hidden;
+    background-image: repeating-linear-gradient(180deg, transparent 0 2px, rgba(0,0,0,0.55) 2px 3px), linear-gradient(180deg, #7fe3d5, #1f7f74); }
+  .meter.out .bar { background-image: repeating-linear-gradient(180deg, transparent 0 2px, rgba(0,0,0,0.55) 2px 3px), linear-gradient(180deg, #ff4f7b, #ff9a5c); }
+  .meter .shade { position: absolute; left: 0; right: 0; top: 0; height: 100%; background: var(--well); opacity: 0.86; }
+  .meter .tag { position: absolute; left: 50%; top: 100%; transform: translate(-50%, -50%); z-index: 1; white-space: nowrap; font-size: 10px; font-weight: 500; padding: 2px 5px; border-radius: 3px;
+    background: var(--bg2); color: var(--text); box-shadow: var(--raise-sm); font-variant-numeric: tabular-nums; }
+  .meter .ticks { display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .meter .cap { grid-column: 1; text-align: center; font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  button.round { width: 50px; height: 50px; border-radius: 50%; padding: 10px 0 0; position: relative; font-size: 9px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); background: var(--face); box-shadow: var(--raise); }
+  button.round::before { content: ""; position: absolute; left: 50%; top: 10px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--well); box-shadow: var(--inset); }
+  button.round.on::before { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  button.round.on { color: var(--accent); box-shadow: var(--inset), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+  .knob { display: flex; flex-direction: column; align-items: center; gap: 8px; outline: none; touch-action: none; }
+  .kwrap { position: relative; }
+  .kwrap svg { position: absolute; inset: 0; }
+  .ktrack { fill: none; stroke: var(--well); stroke-width: 5; stroke-linecap: round; }
+  .karc { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; filter: drop-shadow(0 0 3px var(--accent)); }
+  .knob.boost .karc { stroke: var(--danger); filter: drop-shadow(0 0 3px var(--danger)); }
+  .kdots { fill: none; stroke: var(--line-strong); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 0.1 12; }
+  .kface { position: absolute; border-radius: 50%; background: var(--face); box-shadow: var(--raise), inset 0 0 0 1px rgba(255,255,255,0.03);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .kface::before { content: ""; position: absolute; inset: 14%; border-radius: 50%; background: var(--bg); box-shadow: var(--inset); }
+  .kneedle { position: absolute; inset: 0; }
+  .kneedle::after { content: ""; position: absolute; left: 50%; top: 5%; width: 2px; height: 9%; margin-left: -1px; border-radius: 1px; background: var(--accent); }
+  .knob.boost .kneedle::after { background: var(--danger); }
+  .kvalue { position: relative; font-size: 17px; font-weight: 400; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .kunit { position: relative; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+  .knob.large .kvalue { font-size: 28px; font-weight: 300; }
+  .klabel { font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .knob:focus-visible .kface { outline: 1px solid var(--accent); outline-offset: 3px; }
+  .knobs { display: flex; justify-content: space-around; padding: 8px 0 4px; }
+
+  .sliders { display: flex; height: 190px; padding: 8px 8px 6px 34px; position: relative; }
+  .scale { position: absolute; left: 6px; top: 30px; bottom: 28px; width: 24px; color: var(--muted); font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+  .scale span { position: absolute; right: 0; transform: translateY(-50%); }
+  .band { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+  .band .value, .band .freq { font-size: 11px; color: var(--muted); height: 14px; font-variant-numeric: tabular-nums; }
+  .band .value.set { color: var(--text); font-weight: 500; }
+  .band .freq { color: var(--text); font-weight: 500; }
+  .track { flex: 1; width: 100%; position: relative; outline: none; touch-action: none;
+    background: repeating-linear-gradient(180deg, var(--line-strong) 0 1px, transparent 1px 12.5%) center / 18px 100% no-repeat; }
+  .track::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 6px; margin-left: -3px; border-radius: 3px; background: var(--well); box-shadow: var(--inset); }
+  .track::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26px; height: 1px; margin-left: -13px; background: var(--muted); }
+  .fill { position: absolute; left: 50%; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--accent); box-shadow: 0 0 5px var(--accent); }
+  .thumb { position: absolute; left: 50%; z-index: 1; width: 24px; height: 14px; margin: -7px 0 0 -12px; border-radius: 4px; background: var(--face); box-shadow: var(--raise-sm), inset 0 0 0 1px rgba(255,255,255,0.06); }
+  .thumb::after { content: ""; position: absolute; left: 4px; right: 4px; top: 6px; height: 2px; border-radius: 1px; background: var(--accent); }
+  .track:focus-visible .thumb { outline: 1px solid var(--accent); outline-offset: 2px; }
+
+  input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 18px; background: transparent; margin: 0; outline: none; }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--well); box-shadow: var(--inset); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -5px; border-radius: 50%; background: var(--accent); border: 5px solid var(--bg); box-shadow: var(--raise-sm); }
+  input[type=range]:focus-visible::-webkit-slider-thumb { outline: 1px solid var(--accent); outline-offset: 2px; }
+  .field { display: grid; grid-template-columns: 130px 1fr 64px; gap: 8px 10px; align-items: center; }
+  .field > label, .field > span.name { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .field output { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .bands { display: grid; grid-template-columns: 22px 1.5fr 1fr 1fr 1fr 28px; gap: 8px 6px; align-items: center; }
+  .bands .head { color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+  .bands select { border-radius: 8px; }
+  input[type=checkbox] { accent-color: var(--accent); }
+  .list { display: flex; flex-direction: column; }
+  .list .item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--line); }
+  .list .item:first-child { border-top: 0; }
+  .list .item.link:hover { color: var(--accent); }
+  .item img { width: 24px; height: 24px; flex: none; }
+  .item .placeholder { width: 24px; height: 24px; flex: none; border-radius: 6px; background: var(--well); box-shadow: var(--inset); }
+  .item .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .sub { color: var(--muted); font-size: 11px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); flex: none; }
+  .dot.idle { background: var(--line-strong); box-shadow: none; }
+  .item output { width: 44px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .swatches { display: flex; gap: 8px; }
+  .swatch { width: 22px; height: 22px; border-radius: 50%; padding: 0; box-shadow: var(--raise-sm); }
+  .swatch.active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text); }
+  .results { max-height: 190px; overflow-y: auto; }
+</style>
+</head>
+<body class="off">
+  <header>
+    <div class="side" id="device">–</div>
+    <div class="preset-tab">
+      <button class="nav" id="prevPreset" title="Vorheriges Preset" aria-label="Vorheriges Preset">‹</button>
+      <div id="presetName">Flat</div>
+      <button class="nav" id="nextPreset" title="Nächstes Preset" aria-label="Nächstes Preset">›</button>
+    </div>
+    <div class="side right">
+      <label class="switch big" title="KlangEQ ein/aus">
+        <input type="checkbox" id="enabled" aria-label="KlangEQ ein/aus"><span></span>
+      </label>
+    </div>
+  </header>
+  <div id="error" role="alert"></div>
+  <nav id="tabs"></nav>
+  <main id="view"></main>
+  <footer>KLANGEQ</footer>
+
+<script>
+(function () {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const post = message => {
+    const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bridge;
+    if (bridge) bridge.postMessage(message);
+  };
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+  // ---------- Daten ----------
+  const FREQS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+  const TYPES = { peak: "Glocke", lowshelf: "Tiefen-Shelf", highshelf: "Höhen-Shelf", lowpass: "Tiefpass", highpass: "Hochpass", bandpass: "Bandpass", notch: "Kerbfilter" };
+  const APO = { peak: "PK", lowshelf: "LSC", highshelf: "HSC", lowpass: "LPQ", highpass: "HPQ", bandpass: "BP", notch: "NO" };
+  const APO_IN = { PK: "peak", PEQ: "peak", LS: "lowshelf", LSC: "lowshelf", LSQ: "lowshelf", HS: "highshelf", HSC: "highshelf", HSQ: "highshelf", LP: "lowpass", LPQ: "lowpass", HP: "highpass", HPQ: "highpass", BP: "bandpass", NO: "notch" };
+  const HAS_GAIN = { peak: true, lowshelf: true, highshelf: true };
+  const DEFAULT_BANDS = [
+    { type: "lowshelf", freq: 100, gain: 0, q: 0.7, on: true }, { type: "peak", freq: 400, gain: 0, q: 1, on: true },
+    { type: "peak", freq: 1500, gain: 0, q: 1, on: true }, { type: "peak", freq: 5000, gain: 0, q: 1, on: true },
+    { type: "highshelf", freq: 10000, gain: 0, q: 0.7, on: true },
+  ];
+  const BUILTIN = {
+    basic: [
+      { name: "Flat", data: [0, 0, 0] }, { name: "Bass Boost", data: [6, 0, 0] }, { name: "Höhen Boost", data: [0, 0, 6] },
+      { name: "Loudness", data: [5, -2, 4] }, { name: "Stimme", data: [-3, 4, 1] }, { name: "Warm", data: [3, 0, -3] },
+    ],
+    advanced: [
+      { name: "Flat", data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, { name: "Bass Boost", data: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0] },
+      { name: "Bass Reducer", data: [-6, -5, -4, -2, 0, 0, 0, 0, 0, 0] }, { name: "Höhen Boost", data: [0, 0, 0, 0, 0, 0, 2, 4, 5, 6] },
+      { name: "Höhen Reducer", data: [0, 0, 0, 0, 0, 0, -2, -4, -5, -6] }, { name: "Loudness", data: [5, 4, 2, 0, -1, -1, 0, 2, 4, 5] },
+      { name: "Stimme", data: [-3, -2, -1, 1, 3, 4, 4, 2, 0, -1] }, { name: "Rock", data: [5, 4, 2, 0, -1, -1, 1, 3, 4, 5] },
+      { name: "Pop", data: [-1, 0, 2, 3, 4, 3, 2, 0, -1, -1] }, { name: "Jazz", data: [3, 2, 1, 2, -1, -1, 0, 1, 2, 3] },
+      { name: "Klassik", data: [4, 3, 2, 1, 0, 0, 0, 1, 2, 3] }, { name: "Elektronisch", data: [5, 4, 1, 0, -2, 1, 0, 1, 4, 5] },
+      { name: "Hip-Hop", data: [5, 4, 1, 3, -1, -1, 1, -1, 2, 3] }, { name: "Akustik", data: [4, 4, 3, 1, 2, 2, 3, 3, 3, 2] },
+      { name: "Kleine Lautsprecher", data: [6, 5, 4, 3, 1, 0, -1, -2, -3, -4] },
+    ],
+    expert: [{ name: "Flat", data: { preamp: 0, bands: DEFAULT_BANDS } }],
+  };
+  const ACCENTS = ["#3fc1b0", "#4db5ff", "#b06be0", "#ff5f8a", "#ffa07a", "#e8e36b"];
+  const TABS = [["eq", "Equalizer"], ["mixer", "Mixer"], ["effects", "Klang & Effekte"], ["profiles", "Profile"], ["settings", "Einstellungen"]];
+
+  const defaultUI = () => ({
+    tab: "eq", theme: "dark", accent: ACCENTS[0], spectrum: true,
+    presets: { basic: [], advanced: [], expert: [] },
+    selected: { basic: "Flat", advanced: "Flat", expert: "Flat" },
+  });
+  function mergeUI(json) {
+    let stored = {};
+    try { stored = JSON.parse(json || "{}"); } catch (e) {}
+    const ui = Object.assign(defaultUI(), stored);
+    ui.presets = Object.assign(defaultUI().presets, stored.presets);
+    ui.selected = Object.assign(defaultUI().selected, stored.selected);
+    if (!ACCENTS.includes(ui.accent)) ui.accent = ACCENTS[0];
+    return ui;
+  }
+
+  // S: gespeicherte Einstellungen, U: Zustand der Oberfläche, R: Laufzeitdaten.
+  let S = {
+    enabled: false, appVolumes: {}, outputDevice: "", profiles: [], rules: [], autoSwitch: false, ui: "{}",
+    sound: { eqOn: true, eqMode: "advanced", basic: [0, 0, 0], advanced: FREQS.map(() => 0), expert: clone(DEFAULT_BANDS), expertPreamp: 0,
+      volume: 1, muted: false, balance: 0, mono: false, spatialOn: false, width: 1, crossfeed: 0, limiter: true, effects: [] },
+  };
+  let U = defaultUI();
+  let R = { running: false, error: "", device: "", defaultDevice: "", devices: [], apps: [], runningApps: [], catalog: [], launchAtLogin: false, sampleRate: 48000, spectrum: null, levels: { in: 0, out: 0 } };
+  let pointerDown = false;
+  const transient = { savingPreset: false, expertPanel: null, confirmReset: false, headphones: null, headphoneError: "", ruleKind: "device", notice: "" };
+
+  const saveSound = () => { post({ type: "set", key: "sound", value: S.sound }); drawGraph(); };
+  const saveUI = () => { S.ui = JSON.stringify(U); post({ type: "set", key: "ui", value: S.ui }); };
+  const save = key => post({ type: "set", key, value: S[key] });
+
+  // ---------- Bausteine ----------
+  function h(tag, props, ...kids) {
+    const element = document.createElement(tag);
+    for (const kid of kids.flat(Infinity)) {
+      if (kid == null || kid === false) continue;
+      element.append(kid.nodeType ? kid : String(kid));
+    }
+    for (const key in props || {}) {
+      const value = props[key];
+      if (key === "class") element.className = value;
+      else if (key === "style") element.style.cssText = value;
+      else if (key.startsWith("on")) element.addEventListener(key.slice(2), value);
+      else if (key in element) element[key] = value;
+      else if (value !== false && value != null) element.setAttribute(key, value);
+    }
+    return element;
+  }
+  const num = (value, digits) => Number(value).toFixed(digits == null ? 1 : digits).replace(/\.0+$/, "").replace(".", ",");
+  const formatDb = value => (value > 0 ? "+" : value < 0 ? "−" : "") + num(Math.abs(value));
+  const formatFreq = hz => hz >= 1000 ? num(hz / 1000) + "k" : String(hz);
+
+  function toggle(checked, onChange, label, showLabel) {
+    const control = h("label", { class: "switch" },
+      h("input", { type: "checkbox", checked, "aria-label": label, onchange: event => onChange(event.target.checked) }), h("span"));
+    return showLabel ? h("label", { class: "check" }, control, label) : control;
+  }
+  function segmented(options, current, onSelect) {
+    return h("div", { class: "seg" }, options.map(([value, label]) =>
+      h("button", { class: value === current ? "active" : "", onclick: () => onSelect(value) }, label)));
+  }
+  /** Zeile aus Beschriftung, waagerechtem Regler und Wert. */
+  function field(label, { min, max, step, value, format, onInput, reset }) {
+    const output = h("output", null, format(value));
+    const range = h("input", { type: "range", min, max, step, value, "aria-label": label,
+      oninput: event => { const v = Number(event.target.value); output.textContent = format(v); onInput(v); },
+      ondblclick: () => { if (reset == null) return; range.value = reset; output.textContent = format(reset); onInput(reset); } });
+    return [h("span", { class: "name", title: label }, label), range, output];
+  }
+  /** Senkrechter Regler für ein EQ-Band. */
+  function vslider({ label, aria, value, limit, onInput }) {
+    let current = value;
+    const fill = h("div", { class: "fill" }), thumb = h("div", { class: "thumb" }), valueLabel = h("div", { class: "value" });
+    const track = h("div", { class: "track", tabIndex: 0, role: "slider", "aria-orientation": "vertical", "aria-label": aria,
+      "aria-valuemin": -limit, "aria-valuemax": limit }, fill, thumb);
+    const paint = () => {
+      const position = 50 - current / limit * 50;
+      thumb.style.top = position + "%";
+      fill.style.top = Math.min(position, 50) + "%";
+      fill.style.height = Math.abs(position - 50) + "%";
+      valueLabel.textContent = formatDb(current);
+      valueLabel.classList.toggle("set", current !== 0);
+      track.setAttribute("aria-valuenow", current);
+    };
+    const set = next => {
+      next = clamp(Math.round(next * 2) / 2, -limit, limit);
+      if (next === current) return;
+      current = next;
+      paint();
+      onInput(next);
+    };
+    const fromPointer = event => {
+      const rect = track.getBoundingClientRect();
+      set((0.5 - (event.clientY - rect.top) / rect.height) * 2 * limit);
+    };
+    track.addEventListener("pointerdown", event => { track.setPointerCapture(event.pointerId); fromPointer(event); });
+    track.addEventListener("pointermove", event => { if (track.hasPointerCapture(event.pointerId)) fromPointer(event); });
+    track.addEventListener("dblclick", () => set(0));
+    track.addEventListener("keydown", event => {
+      const step = { ArrowUp: 0.5, ArrowDown: -0.5, PageUp: 3, PageDown: -3 }[event.key];
+      if (step) { set(current + step); event.preventDefault(); }
+      if (event.key === "Home" || event.key === "0") { set(0); event.preventDefault(); }
+    });
+    paint();
+    return h("div", { class: "band" }, valueLabel, track, h("div", { class: "freq" }, label));
+  }
+
+  // ---------- Drehregler und Pegelanzeigen ----------
+  const svg = (tag, attributes) => {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const key in attributes) element.setAttribute(key, attributes[key]);
+    return element;
+  };
+  /** Kreisbogen, Winkel in Grad, 0 = oben, im Uhrzeigersinn. */
+  function arc(center, radius, from, to) {
+    const point = angle => [center + radius * Math.sin(angle * Math.PI / 180), center - radius * Math.cos(angle * Math.PI / 180)];
+    const [x0, y0] = point(from), [x1, y1] = point(to);
+    return "M " + x0.toFixed(2) + " " + y0.toFixed(2) + " A " + radius + " " + radius + " 0 " + (to - from > 180 ? 1 : 0) + " 1 " + x1.toFixed(2) + " " + y1.toFixed(2);
+  }
+  function knob({ size, value, min, max, step, reset, label, unit, format, boostAbove, onInput }) {
+    let current = value;
+    const center = size / 2, radius = size / 2 - 5, inset = Math.round(size * 0.14);
+    const valueArc = svg("path", { class: "karc" });
+    const drawing = svg("svg", { width: size, height: size, viewBox: "0 0 " + size + " " + size });
+    drawing.append(svg("path", { class: "ktrack", d: arc(center, radius, -135, 135) }), valueArc);
+    const needle = h("div", { class: "kneedle" }), valueText = h("div", { class: "kvalue" });
+    const face = h("div", { class: "kface", style: "inset:" + inset + "px" }, needle, valueText, unit && h("div", { class: "kunit" }, unit));
+    const root = h("div", { class: "knob" + (size > 120 ? " large" : ""), tabIndex: 0, role: "slider", "aria-label": label, "aria-valuemin": min, "aria-valuemax": max },
+      h("div", { class: "kwrap", style: "width:" + size + "px;height:" + size + "px" }, drawing, face), h("div", { class: "klabel" }, label));
+    const angleOf = v => -135 + 270 * (v - min) / (max - min);
+    const paint = () => {
+      const angle = angleOf(current), origin = min < 0 && max > 0 ? angleOf(0) : -135;
+      valueArc.setAttribute("d", Math.abs(angle - origin) < 0.5 ? "" : arc(center, radius, Math.min(angle, origin), Math.max(angle, origin)));
+      needle.style.transform = "rotate(" + angle + "deg)";
+      valueText.textContent = format(current);
+      root.classList.toggle("boost", boostAbove != null && current > boostAbove);
+      root.setAttribute("aria-valuenow", current);
+    };
+    const set = next => {
+      next = clamp(Math.round(next / step) * step, min, max);
+      if (next === current) return;
+      current = next;
+      paint();
+      onInput(next);
+    };
+    let startY = 0, startValue = 0;
+    root.addEventListener("pointerdown", event => { root.setPointerCapture(event.pointerId); startY = event.clientY; startValue = current; });
+    root.addEventListener("pointermove", event => { if (root.hasPointerCapture(event.pointerId)) set(startValue + (startY - event.clientY) / 160 * (max - min)); });
+    root.addEventListener("wheel", event => { event.preventDefault(); set(current - Math.sign(event.deltaY) * step * 2); }, { passive: false });
+    root.addEventListener("dblclick", () => set(reset));
+    root.addEventListener("keydown", event => {
+      const delta = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 10, PageDown: -10 }[event.key];
+      if (delta) { set(current + delta * step); event.preventDefault(); }
+      if (event.key === "Home") { set(reset); event.preventDefault(); }
+    });
+    paint();
+    return root;
+  }
+
+  const meterState = { in: 0, out: 0 };
+  function meter(kind) {
+    const bar = () => h("div", { class: "bar" }, h("div", { class: "shade" }));
+    return h("div", { class: "meter " + kind, id: kind + "Meter" },
+      h("div", { class: "bars" }, bar(), bar(), h("div", { class: "tag" }, "−∞")),
+      h("div", { class: "ticks" }, [0, 8, 16, 24, 32, 40, 48, 56].map(db => h("span", null, db ? "−" + db : "0"))),
+      h("div", { class: "cap" }, kind));
+  }
+  function paintMeters() {
+    for (const kind of ["in", "out"]) {
+      const target = R.running ? (R.levels[kind] || 0) : 0;
+      meterState[kind] = Math.max(target, meterState[kind] * 0.82);
+      const root = $(kind + "Meter");
+      if (!root) continue;
+      const db = meterState[kind] > 0.0001 ? 20 * Math.log10(meterState[kind]) : -Infinity;
+      const level = clamp((db + 56) / 56, 0, 1);
+      root.querySelectorAll(".shade").forEach(shade => { shade.style.height = (1 - level) * 100 + "%"; });
+      const tag = root.querySelector(".tag");
+      tag.style.top = (1 - level) * 100 + "%";
+      tag.textContent = db === -Infinity ? "−∞" : num(db) + " dB";
+    }
+  }
+
+  // ---------- Presets ----------
+  const presetsFor = mode => BUILTIN[mode].map(p => Object.assign({ builtin: true }, p)).concat(U.presets[mode] || []);
+  const currentData = mode => mode === "expert" ? { preamp: S.sound.expertPreamp, bands: clone(S.sound.expert) } : clone(S.sound[mode]);
+  function applyData(mode, data) {
+    if (mode === "expert") { S.sound.expertPreamp = data.preamp || 0; S.sound.expert = clone(data.bands || []); }
+    else S.sound[mode] = clone(data);
+  }
+  /** Sobald von Hand geregelt wird, gilt kein Preset mehr als ausgewählt. */
+  function markCustom(mode) {
+    if (!U.selected[mode]) return;
+    U.selected[mode] = "";
+    saveUI();
+    paintHeader();
+    const remove = $("deletePreset");
+    if (remove) remove.disabled = true;
+  }
+  /** Blättert mit den Pfeilen im Kopf durch die Presets des aktuellen EQ-Modus. */
+  function stepPreset(direction) {
+    const mode = S.sound.eqMode, all = presetsFor(mode);
+    if (!all.length) return;
+    let index = all.findIndex(p => p.name === U.selected[mode]);
+    index = index < 0 ? (direction > 0 ? 0 : all.length - 1) : (index + direction + all.length) % all.length;
+    applyData(mode, all[index].data);
+    U.selected[mode] = all[index].name;
+    saveUI(); saveSound(); render();
+  }
+  function savePresetRow(mode) {
+    const confirm = () => {
+      const name = input.value.trim().slice(0, 60);
+      if (!name) { input.focus(); return; }
+      if (BUILTIN[mode].some(p => p.name === name)) { input.select(); return; }
+      U.presets[mode] = (U.presets[mode] || []).filter(p => p.name !== name).concat({ name, data: currentData(mode) });
+      U.selected[mode] = name;
+      transient.savingPreset = false;
+      saveUI();
+      render();
+    };
+    const cancel = () => { transient.savingPreset = false; render(); };
+    const existing = (U.presets[mode] || []).find(p => p.name === U.selected[mode]);
+    const input = h("input", { type: "text", class: "grow", maxLength: 60, placeholder: "Name des Presets", value: existing ? existing.name : "",
+      "aria-label": "Name des Presets", onkeydown: event => { if (event.key === "Enter") confirm(); if (event.key === "Escape") cancel(); } });
+    setTimeout(() => { input.focus(); input.select(); });
+    return h("div", { class: "row" }, input, h("button", { class: "primary", onclick: confirm }, "Sichern"), h("button", { onclick: cancel }, "Abbrechen"));
+  }
+
+  // ---------- Frequenzgang ----------
+  function biquad(type, freq, gain, q, rate) {
+    const a = Math.pow(10, gain / 40), w0 = 2 * Math.PI * freq / rate, cs = Math.cos(w0), alpha = Math.sin(w0) / (2 * q), s = 2 * Math.sqrt(a) * alpha;
+    let b0, b1, b2, a0, a1, a2;
+    switch (type) {
+      case "lowshelf": b0 = a * ((a + 1) - (a - 1) * cs + s); b1 = 2 * a * ((a - 1) - (a + 1) * cs); b2 = a * ((a + 1) - (a - 1) * cs - s);
+        a0 = (a + 1) + (a - 1) * cs + s; a1 = -2 * ((a - 1) + (a + 1) * cs); a2 = (a + 1) + (a - 1) * cs - s; break;
+      case "highshelf": b0 = a * ((a + 1) + (a - 1) * cs + s); b1 = -2 * a * ((a - 1) + (a + 1) * cs); b2 = a * ((a + 1) + (a - 1) * cs - s);
+        a0 = (a + 1) - (a - 1) * cs + s; a1 = 2 * ((a - 1) - (a + 1) * cs); a2 = (a + 1) - (a - 1) * cs - s; break;
+      case "lowpass": b0 = (1 - cs) / 2; b1 = 1 - cs; b2 = (1 - cs) / 2; a0 = 1 + alpha; a1 = -2 * cs; a2 = 1 - alpha; break;
+      case "highpass": b0 = (1 + cs) / 2; b1 = -(1 + cs); b2 = (1 + cs) / 2; a0 = 1 + alpha; a1 = -2 * cs; a2 = 1 - alpha; break;
+      case "bandpass": b0 = alpha; b1 = 0; b2 = -alpha; a0 = 1 + alpha; a1 = -2 * cs; a2 = 1 - alpha; break;
+      case "notch": b0 = 1; b1 = -2 * cs; b2 = 1; a0 = 1 + alpha; a1 = -2 * cs; a2 = 1 - alpha; break;
+      default: b0 = 1 + alpha * a; b1 = -2 * cs; b2 = 1 - alpha * a; a0 = 1 + alpha / a; a1 = -2 * cs; a2 = 1 - alpha / a;
+    }
+    return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+  }
+  /** Dieselbe Filterliste, die auch die Audioverarbeitung benutzt. */
+  function activeFilters() {
+    const s = S.sound, rate = R.sampleRate || 48000, filters = [];
+    const add = (type, freq, gain, q) => {
+      if (!(freq > 0 && freq < rate * 0.49 && q > 0) || (HAS_GAIN[type] && gain === 0) || filters.length >= 40) return;
+      filters.push(biquad(type, freq, gain, q, rate));
+    };
+    let preamp = 0;
+    if (s.eqOn) {
+      if (s.eqMode === "basic") { add("lowshelf", 100, s.basic[0], 0.7); add("peak", 1000, s.basic[1], 0.7); add("highshelf", 8000, s.basic[2], 0.7); }
+      else if (s.eqMode === "expert") { preamp = s.expertPreamp; s.expert.forEach(b => { if (b.on) add(b.type, b.freq, b.gain, b.q); }); }
+      else FREQS.forEach((freq, i) => add("peak", freq, s.advanced[i], 1.41));
+    }
+    return { filters, preamp, rate };
+  }
+  const ZONES = ["#ffa07a", "#ff5f8a", "#b06be0", "#4db5ff"];
+  const GRID = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  const GRID_MINOR = [30, 40, 60, 70, 80, 90, 300, 400, 600, 700, 800, 900, 3000, 4000, 6000, 7000, 8000, 9000];
+  /** Frequenzen, an denen der aktuelle EQ-Modus eingreift (Punkte auf der Kurve). */
+  function nodeFreqs() {
+    const s = S.sound;
+    if (!s.eqOn) return [];
+    if (s.eqMode === "basic") return [100, 1000, 8000];
+    if (s.eqMode === "expert") return s.expert.filter(b => b.on && b.freq >= 20 && b.freq <= 20000).map(b => b.freq);
+    return FREQS;
+  }
+  /** Anzeige wie ein Analyzer: Raster mit Achsen, dahinter das Spektrum, darüber die EQ-Kurve. */
+  function drawGraph() {
+    const canvas = $("graph");
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1, width = canvas.clientWidth, height = canvas.clientHeight;
+    if (canvas.width !== width * ratio) { canvas.width = width * ratio; canvas.height = height * ratio; }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const { filters, preamp, rate } = activeFilters();
+    const dbAt = freq => {
+      const w = 2 * Math.PI * freq / rate, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+      let db = preamp;
+      for (const f of filters) {
+        const nr = f[0] + f[1] * c1 + f[2] * c2, ni = f[1] * s1 + f[2] * s2, dr = 1 + f[3] * c1 + f[4] * c2, di = f[3] * s1 + f[4] * s2;
+        db += 10 * Math.log10(Math.max((nr * nr + ni * ni) / (dr * dr + di * di), 1e-12));
+      }
+      return db;
+    };
+    const light = document.body.classList.contains("light");
+    const ink = alpha => (light ? "rgba(29,31,37," : "rgba(255,255,255,") + alpha + ")";
+
+    const left = 36, top = 12, plotWidth = width - left - 12, plotHeight = height - top - 24, floor = top + plotHeight;
+    const x = freq => left + Math.log(freq / 20) / Math.log(1000) * plotWidth;
+    const steps = 200, curve = [];
+    let extreme = 11;
+    for (let i = 0; i <= steps; i++) {
+      curve.push(dbAt(20 * Math.pow(1000, i / steps)));
+      extreme = Math.max(extreme, Math.min(Math.abs(curve[i]), 35));
+    }
+    const range = Math.ceil((extreme + 1) / 6) * 6, gridStep = range > 18 ? 12 : 6;
+    const y = db => top + plotHeight / 2 - clamp(db / range, -1, 1) * plotHeight / 2;
+    const line = (x0, y0, x1, y1) => { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
+
+    // Raster und Achsen
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = ink(0.045);
+    for (const freq of GRID_MINOR) { const px = Math.round(x(freq)) + 0.5; line(px, top, px, floor); }
+    ctx.font = "500 10px 'Avenir Next', -apple-system, sans-serif"; ctx.textBaseline = "middle";
+    for (const freq of GRID) {
+      const px = Math.round(x(freq)) + 0.5;
+      ctx.strokeStyle = ink(0.1);
+      line(px, top, px, floor);
+      ctx.fillStyle = ink(0.62);
+      ctx.textAlign = freq === 20 ? "left" : freq === 20000 ? "right" : "center";
+      ctx.fillText(formatFreq(freq), px, floor + 13);
+    }
+    ctx.textAlign = "right";
+    for (let db = -range; db <= range; db += gridStep) {
+      const py = Math.round(y(db)) + 0.5;
+      ctx.strokeStyle = ink(db === 0 ? 0.28 : 0.1);
+      line(left, py, left + plotWidth, py);
+      ctx.fillStyle = ink(0.62);
+      ctx.fillText(formatDb(db), left - 7, py);
+    }
+
+    // Spektrum
+    if (U.spectrum && R.spectrum && R.running) {
+      const count = R.spectrum.length, barWidth = plotWidth / count;
+      for (let i = 0; i < count; i++) {
+        const color = ZONES[Math.min(3, Math.floor(i / count * 4))];
+        const barHeight = clamp(R.spectrum[i], 0, 1) * plotHeight;
+        if (barHeight < 1) continue;
+        const bx = left + i * barWidth + 1, shade = ctx.createLinearGradient(0, top, 0, floor);
+        shade.addColorStop(0, color + "b0"); shade.addColorStop(1, color + "26");
+        ctx.fillStyle = shade;
+        ctx.fillRect(bx, floor - barHeight, barWidth - 2, barHeight);
+        ctx.fillStyle = color;
+        ctx.fillRect(bx, floor - barHeight, barWidth - 2, 2);
+      }
+    }
+
+    // EQ-Kurve mit Fläche zur Nulllinie
+    const trace = () => { for (let i = 0; i <= steps; i++) { const px = left + i / steps * plotWidth, py = y(curve[i]); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); } };
+    const active = S.sound.eqOn;
+    if (active) {
+      const tint = ctx.createLinearGradient(left, 0, left + plotWidth, 0);
+      ZONES.forEach((color, zone) => tint.addColorStop(zone / 4 + 0.125, color + "4d"));
+      ctx.fillStyle = tint;
+      ctx.beginPath(); trace(); ctx.lineTo(left + plotWidth, y(0)); ctx.lineTo(left, y(0)); ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = ink(active ? 0.95 : 0.4); ctx.lineWidth = 1.75; ctx.lineJoin = "round";
+    ctx.beginPath(); trace(); ctx.stroke();
+
+    // Eingriffspunkte der Bänder
+    ctx.lineWidth = 1.5; ctx.strokeStyle = ink(0.95);
+    for (const freq of nodeFreqs()) {
+      const px = x(freq);
+      ctx.fillStyle = ZONES[clamp(Math.floor((px - left) / plotWidth * 4), 0, 3)];
+      ctx.beginPath(); ctx.arc(px, y(dbAt(freq)), 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    }
+    ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+  }
+
+  // ---------- Equalizer ----------
+  function toAPO() {
+    const lines = ["Preamp: " + S.sound.expertPreamp.toFixed(1) + " dB"];
+    S.sound.expert.forEach((b, i) => lines.push("Filter " + (i + 1) + ": " + (b.on ? "ON" : "OFF") + " " + APO[b.type] + " Fc " + Math.round(b.freq) + " Hz" +
+      (HAS_GAIN[b.type] ? " Gain " + b.gain.toFixed(1) + " dB" : "") + " Q " + b.q.toFixed(2)));
+    return lines.join("\n");
+  }
+  function parseAPO(text) {
+    const result = { preamp: 0, bands: [] };
+    for (const raw of text.split(/\r?\n/)) {
+      const lineText = raw.trim();
+      const preamp = /^Preamp:\s*(-?[\d.]+)/i.exec(lineText);
+      if (preamp) { result.preamp = clamp(Number(preamp[1]) || 0, -30, 30); continue; }
+      const filter = /^Filter\s*\d*:\s*(ON|OFF)\s+([A-Z]+)\s+Fc\s+([\d.]+)\s*Hz(?:\s+Gain\s+(-?[\d.]+)\s*dB)?(?:\s+Q\s+([\d.]+))?/i.exec(lineText);
+      if (!filter) continue;
+      const type = APO_IN[filter[2].toUpperCase()];
+      if (!type || result.bands.length >= 40) continue;
+      result.bands.push({ type, on: filter[1].toUpperCase() === "ON", freq: clamp(Number(filter[3]) || 1000, 10, 22000),
+        gain: clamp(Number(filter[4]) || 0, -30, 30), q: clamp(Number(filter[5]) || 0.707, 0.05, 30) });
+    }
+    return result.bands.length ? result : null;
+  }
+
+  function expertEditor() {
+    const s = S.sound;
+    const changed = () => { markCustom("expert"); saveSound(); };
+    const number = (band, key, min, max, disabled) => h("input", { type: "number", value: band[key], min, max, step: "any", disabled,
+      "aria-label": key, oninput: event => { const v = Number(event.target.value); if (event.target.value !== "" && isFinite(v)) { band[key] = clamp(v, min, max); changed(); } },
+      onchange: event => { event.target.value = band[key]; } });
+    const rows = s.expert.map((band, index) => [
+      h("input", { type: "checkbox", checked: band.on, "aria-label": "Band aktiv", onchange: event => { band.on = event.target.checked; changed(); } }),
+      h("select", { value: band.type, "aria-label": "Filtertyp", onchange: event => { band.type = event.target.value; changed(); render(); } },
+        Object.keys(TYPES).map(type => h("option", { value: type }, TYPES[type]))),
+      number(band, "freq", 10, 22000), number(band, "gain", -30, 30, !HAS_GAIN[band.type]), number(band, "q", 0.05, 30),
+      h("button", { class: "icon", title: "Band entfernen", "aria-label": "Band entfernen", onclick: () => { s.expert.splice(index, 1); changed(); render(); } }, "✕"),
+    ]);
+    const editor = h("div", { class: "panel pad stack dim" },
+      h("div", { class: "bands" }, ["", "Typ", "Frequenz (Hz)", "Pegel (dB)", "Güte (Q)", ""].map(t => h("div", { class: "head" }, t)), rows),
+      h("div", { class: "row" },
+        h("button", { disabled: s.expert.length >= 40, onclick: () => { s.expert.push({ type: "peak", freq: 1000, gain: 0, q: 1, on: true }); changed(); render(); } }, "+ Band"),
+        h("span", { class: "grow" }),
+        h("span", { class: "muted" }, "Vorverstärkung (dB)"),
+        h("div", { style: "width:70px" }, h("input", { type: "number", value: s.expertPreamp, min: -30, max: 30, step: "any", "aria-label": "Vorverstärkung",
+          oninput: event => { const v = Number(event.target.value); if (event.target.value !== "" && isFinite(v)) { s.expertPreamp = clamp(v, -30, 30); changed(); } } }))),
+      h("div", { class: "row" },
+        h("button", { onclick: () => { transient.expertPanel = transient.expertPanel === "text" ? null : "text"; render(); } }, "Als Text bearbeiten …"),
+        h("button", { onclick: () => { transient.expertPanel = transient.expertPanel === "headphones" ? null : "headphones"; render(); } }, "Kopfhörer-Presets …")));
+
+    if (transient.expertPanel === "text") {
+      const area = h("textarea", { value: toAPO(), spellcheck: false, "aria-label": "EQ als Text" });
+      const note = h("span", { class: "muted grow" }, "Format wie bei AutoEq / Equalizer APO. Text hier einfügen oder kopieren.");
+      return [editor, h("div", { class: "panel pad stack" }, area, h("div", { class: "row" }, note,
+        h("button", { onclick: () => { area.select(); document.execCommand("copy"); note.textContent = "In die Zwischenablage kopiert."; } }, "Kopieren"),
+        h("button", { class: "primary", onclick: () => {
+          const parsed = parseAPO(area.value);
+          if (!parsed) { note.textContent = "Keine gültigen Filterzeilen gefunden."; return; }
+          applyData("expert", parsed); transient.expertPanel = null; changed(); render();
+        } }, "Übernehmen")))];
+    }
+    if (transient.expertPanel === "headphones") {
+      let timer;
+      const input = h("input", { type: "text", class: "grow", placeholder: "Kopfhörer suchen, z. B. „AirPods Pro“", "aria-label": "Kopfhörer suchen",
+        oninput: event => { clearTimeout(timer); const query = event.target.value.trim(); timer = setTimeout(() => { if (query.length >= 2) post({ type: "headphoneSearch", query }); }, 300); } });
+      setTimeout(() => input.focus());
+      return [editor, h("div", { class: "panel stack", style: "gap:0" },
+        h("div", { class: "pad stack" }, h("div", { class: "row" }, input),
+          h("div", { class: "muted" }, "Korrekturkurven aus dem freien AutoEq-Projekt (wird aus dem Internet geladen).")),
+        h("div", { class: "list results", id: "headphoneResults" }, headphoneItems()))];
+    }
+    return [editor];
+  }
+  function headphoneItems() {
+    if (transient.headphoneError) return [h("div", { class: "item muted" }, transient.headphoneError)];
+    if (!transient.headphones) return [];
+    if (!transient.headphones.length) return [h("div", { class: "item muted" }, "Nichts gefunden.")];
+    return transient.headphones.map(entry => h("div", { class: "item link", onclick: () => post({ type: "headphoneLoad", path: entry.path, name: entry.name }) },
+      h("div", { class: "title" }, entry.name), h("div", { class: "sub" }, entry.source)));
+  }
+
+  function master() {
+    const s = S.sound;
+    const round = (label, on, flip) => h("button", { class: "round" + (on ? " on" : ""), "aria-pressed": String(!!on), onclick: () => { flip(); saveSound(); render(); } }, label);
+    return h("div", { class: "master dim" },
+      meter("in"),
+      h("div", { class: "col" }, round("MONO", s.mono, () => { s.mono = !s.mono; }), round("STUMM", s.muted, () => { s.muted = !s.muted; })),
+      knob({ size: 176, value: Math.round(s.volume * 100), min: 0, max: 200, step: 1, reset: 100, label: "Lautstärke", unit: "%", format: String, boostAbove: 100,
+        onInput: value => { s.volume = value / 100; saveSound(); } }),
+      h("div", { class: "col" }, round("LIMIT", s.limiter, () => { s.limiter = !s.limiter; }), round("RAUM", s.spatialOn, () => { s.spatialOn = !s.spatialOn; })),
+      meter("out"));
+  }
+
+  function eqView() {
+    const s = S.sound, mode = s.eqMode;
+    const selected = presetsFor(mode).find(p => p.name === U.selected[mode]);
+    const controls = transient.savingPreset ? savePresetRow(mode) : h("div", { class: "row" },
+      segmented([["basic", "Einfach"], ["advanced", "Erweitert"], ["expert", "Experte"]], mode, next => { s.eqMode = next; saveSound(); render(); }),
+      h("span", { class: "grow" }),
+      h("button", { onclick: () => { transient.savingPreset = true; render(); } }, "Sichern …"),
+      h("button", { id: "deletePreset", disabled: !selected || !!selected.builtin, onclick: () => {
+        U.presets[mode] = U.presets[mode].filter(p => p.name !== selected.name);
+        U.selected[mode] = "";
+        saveUI(); render();
+      } }, "Löschen"),
+      toggle(s.eqOn, value => { s.eqOn = value; saveSound(); }, "EQ", true));
+    let body;
+    if (mode === "expert") body = expertEditor();
+    else if (mode === "basic") {
+      body = [h("div", { class: "knobs dim" }, ["Bass", "Mitten", "Höhen"].map((label, index) => knob({ size: 96, value: s.basic[index], min: -12, max: 12, step: 0.5, reset: 0,
+        label, unit: "dB", format: formatDb, onInput: value => { s.basic[index] = value; markCustom(mode); saveSound(); } })))];
+    } else {
+      body = [h("div", { class: "sliders dim" },
+        h("div", { class: "scale" }, h("span", { style: "top:0" }, "+12"), h("span", { style: "top:50%" }, "0"), h("span", { style: "top:100%" }, "−12")),
+        FREQS.map((freq, index) => vslider({ label: formatFreq(freq), aria: formatFreq(freq) + " Hz", value: s.advanced[index], limit: 12,
+          onInput: value => { s.advanced[index] = value; markCustom(mode); saveSound(); } })))];
+    }
+    return h("div", { class: "stack" }, h("canvas", { id: "graph" }), controls, master(), body);
+  }
+
+  // ---------- Mixer ----------
+  function mixerView() {
+    const known = {};
+    R.apps.forEach(app => { known[app.id] = app; });
+    const rows = R.apps.filter(app => app.playing || S.appVolumes[app.id])
+      .concat(Object.keys(S.appVolumes).filter(id => !known[id]).map(id => ({ id, name: S.appVolumes[id].name || id, playing: false, icon: "", absent: true })));
+    const update = (app, patch, final) => {
+      const entry = Object.assign({ name: app.name, volume: 1, muted: false }, S.appVolumes[app.id], patch);
+      if (final && entry.volume === 1 && !entry.muted) delete S.appVolumes[app.id]; else S.appVolumes[app.id] = entry;
+      save("appVolumes");
+    };
+    return h("div", { class: "stack" },
+      h("div", { class: "muted" }, "Lautstärke einzelner Apps. Angezeigt werden Apps, die gerade Ton ausgeben oder schon angepasst wurden."),
+      rows.length ? h("div", { class: "panel list dim" }, rows.map(app => {
+        const entry = S.appVolumes[app.id] || { volume: 1, muted: false };
+        const output = h("output", null, Math.round(entry.volume * 100) + " %");
+        return h("div", { class: "item" },
+          app.icon ? h("img", { src: app.icon, alt: "" }) : h("div", { class: "placeholder" }),
+          h("div", { style: "width:120px;min-width:0" }, h("div", { class: "title" }, app.name), app.absent && h("div", { class: "sub" }, "läuft nicht")),
+          h("div", { class: "dot" + (app.playing ? "" : " idle"), title: app.playing ? "gibt Ton aus" : "still" }),
+          h("input", { type: "range", min: 0, max: 200, step: 1, value: Math.round(entry.volume * 100), "aria-label": "Lautstärke " + app.name,
+            oninput: event => { output.textContent = event.target.value + " %"; update(app, { volume: Number(event.target.value) / 100 }); },
+            onchange: event => { update(app, { volume: Number(event.target.value) / 100 }, true); render(); },
+            ondblclick: () => { update(app, { volume: 1 }, true); render(); } }),
+          output,
+          h("button", { class: "icon" + (entry.muted ? " on" : ""), title: "Stumm", "aria-label": "Stumm " + app.name, "aria-pressed": String(!!entry.muted),
+            onclick: () => { update(app, { muted: !entry.muted }, true); render(); } }, entry.muted ? "✕" : "♪"));
+      })) : h("div", { class: "panel pad muted" }, "Im Moment gibt keine App Ton aus."));
+  }
+
+  // ---------- Klang & Effekte ----------
+  const percent = value => Math.round(value * 100) + " %";
+  function effectsView() {
+    const s = S.sound;
+    const catalog = {};
+    R.catalog.forEach(info => { catalog[info.key] = info; });
+    const cards = s.effects.map((effect, index) => {
+      const info = catalog[effect.component] || { name: effect.component, params: [] };
+      return h("div", { class: "panel pad stack dim" },
+        h("div", { class: "row" }, h("strong", { class: "grow" }, info.name),
+          toggle(effect.on, value => { effect.on = value; saveSound(); }, info.name + " aktiv"),
+          h("button", { class: "icon", title: "Effekt entfernen", "aria-label": "Effekt entfernen", onclick: () => { s.effects.splice(index, 1); saveSound(); render(); } }, "✕")),
+        h("div", { class: "field" },
+          field("Anteil (Dry/Wet)", { min: 0, max: 1, step: 0.01, value: effect.mix, format: percent, reset: 1, onInput: value => { effect.mix = value; saveSound(); } }),
+          info.params.map(param => field(param.name, { min: param.min, max: param.max, step: param.step || (param.max - param.min) / 200,
+            value: effect.params[param.id] != null ? effect.params[param.id] : param.def, reset: param.def,
+            format: value => num(value, Math.abs(param.max - param.min) < 20 && !param.step ? 2 : 0) + (param.unit ? " " + param.unit : ""),
+            onInput: value => { effect.params[param.id] = value; saveSound(); } }))));
+    });
+    const picker = h("select", { class: "grow", "aria-label": "Effekt auswählen" }, R.catalog.map(info => h("option", { value: info.key }, info.name)));
+    return h("div", { class: "stack" },
+      h("div", { class: "panel pad dim" }, h("h2", null, "Klang"),
+        h("div", { class: "field" },
+          field("Balance", { min: -1, max: 1, step: 0.05, value: s.balance, reset: 0,
+            format: value => Math.round(Math.abs(value) * 100) === 0 ? "Mitte" : (value < 0 ? "L " : "R ") + Math.round(Math.abs(value) * 100) + " %",
+            onInput: value => { s.balance = value; saveSound(); } })),
+        h("div", { class: "row", style: "margin-top:12px;gap:20px" },
+          toggle(s.mono, value => { s.mono = value; saveSound(); }, "Mono", true),
+          toggle(s.limiter, value => { s.limiter = value; saveSound(); }, "Limiter (schützt vor Übersteuern)", true))),
+      h("div", { class: "panel pad dim" }, h("div", { class: "row", style: "margin-bottom:8px" }, h("h2", { class: "grow", style: "margin:0" }, "Raumklang"),
+          toggle(s.spatialOn, value => { s.spatialOn = value; saveSound(); }, "Raumklang aktiv")),
+        h("div", { class: "field" },
+          field("Stereobreite", { min: 0, max: 2, step: 0.01, value: s.width, format: percent, reset: 1, onInput: value => { s.width = value; saveSound(); } }),
+          field("Übersprechen", { min: 0, max: 1, step: 0.01, value: s.crossfeed, format: percent, reset: 0, onInput: value => { s.crossfeed = value; saveSound(); } })),
+        h("div", { class: "muted", style: "margin-top:8px" }, "Übersprechen mischt etwas vom jeweils anderen Kanal bei – angenehmer mit Kopfhörern.")),
+      h("div", null, h("h2", null, "Effekte"),
+        h("div", { class: "row" }, picker, h("button", { disabled: s.effects.length >= 8 || !R.catalog.length, onclick: () => {
+          const info = catalog[picker.value];
+          if (!info) return;
+          const params = {};
+          info.params.forEach(param => { params[param.id] = param.def; });
+          s.effects.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), component: info.key, on: true, mix: 1, params });
+          saveSound(); render();
+        } }, "Hinzufügen"))),
+      cards);
+  }
+
+  // ---------- Profile ----------
+  function profilesView() {
+    const nameInput = h("input", { type: "text", class: "grow", maxLength: 60, placeholder: "Name des Profils", "aria-label": "Name des Profils",
+      onkeydown: event => { if (event.key === "Enter") add(); } });
+    const add = () => {
+      const name = nameInput.value.trim();
+      if (!name) { nameInput.focus(); return; }
+      S.profiles = S.profiles.filter(p => p.name !== name).concat({ name, sound: clone(S.sound) });
+      save("profiles"); render();
+    };
+    const sources = transient.ruleKind === "app" ? R.runningApps.map(app => [app.id, app.name]) : R.devices.map(device => [device.uid, device.name]);
+    const valueSelect = h("select", { class: "grow", "aria-label": "Auslöser" }, sources.map(([value, label]) => h("option", { value }, label)));
+    const profileSelect = h("select", { class: "grow", "aria-label": "Profil" }, S.profiles.map(p => h("option", { value: p.name }, p.name)));
+    return h("div", { class: "stack" },
+      h("div", { class: "muted" }, "Ein Profil sichert den gesamten Klang: Equalizer, Lautstärke, Raumklang und Effekte."),
+      h("div", { class: "row" }, nameInput, h("button", { class: "primary", onclick: add }, "Aktuellen Klang sichern")),
+      S.profiles.length ? h("div", { class: "panel list" }, S.profiles.map(profile => h("div", { class: "item" },
+        h("div", { class: "title" }, profile.name),
+        h("button", { onclick: () => { S.sound = clone(profile.sound); saveSound(); render(); } }, "Laden"),
+        h("button", { onclick: () => {
+          S.profiles = S.profiles.filter(p => p !== profile);
+          S.rules = S.rules.filter(rule => rule.profile !== profile.name);
+          save("profiles"); save("rules"); render();
+        } }, "Löschen")))) : null,
+      h("div", { class: "panel pad stack" },
+        h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0" }, "Automatisch umschalten"),
+          toggle(S.autoSwitch, value => { S.autoSwitch = value; save("autoSwitch"); }, "Automatisch umschalten")),
+        h("div", { class: "muted" }, "Lädt ein Profil, sobald ein Ausgabegerät aktiv ist oder eine App im Vordergrund steht. App-Regeln haben Vorrang."),
+        h("div", { class: "row" },
+          segmented([["device", "Gerät"], ["app", "App"]], transient.ruleKind, kind => { transient.ruleKind = kind; render(); }),
+          valueSelect, h("span", { class: "muted" }, "→"), profileSelect,
+          h("button", { disabled: !S.profiles.length || !sources.length, onclick: () => {
+            const label = (sources.find(([value]) => value === valueSelect.value) || [])[1] || valueSelect.value;
+            S.rules = S.rules.filter(rule => !(rule.kind === transient.ruleKind && rule.value === valueSelect.value))
+              .concat({ kind: transient.ruleKind, value: valueSelect.value, label, profile: profileSelect.value });
+            save("rules"); render();
+          } }, "Hinzufügen")),
+        S.rules.length ? h("div", { class: "list" }, S.rules.map(rule => h("div", { class: "item", style: "padding:8px 0" },
+          h("div", { class: "sub", style: "width:44px" }, rule.kind === "app" ? "App" : "Gerät"),
+          h("div", { class: "title" }, rule.label + " → " + rule.profile),
+          h("button", { class: "icon", title: "Regel entfernen", "aria-label": "Regel entfernen", onclick: () => { S.rules = S.rules.filter(r => r !== rule); save("rules"); render(); } }, "✕")))) : null));
+  }
+
+  // ---------- Einstellungen ----------
+  function settingsView() {
+    const deviceSelect = h("select", { class: "grow", "aria-label": "Ausgabegerät", onchange: event => { S.outputDevice = event.target.value; save("outputDevice"); } },
+      h("option", { value: "" }, "Systemstandard" + (R.defaultDevice ? " (" + R.defaultDevice + ")" : "")),
+      R.devices.map(device => h("option", { value: device.uid }, device.name)));
+    deviceSelect.value = R.devices.some(device => device.uid === S.outputDevice) ? S.outputDevice : "";
+    return h("div", { class: "stack" },
+      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, "Ausgabe"), h("div", { class: "row" }, deviceSelect),
+        h("div", { class: "muted" }, "Der bearbeitete Ton wird auf diesem Gerät ausgegeben.")),
+      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, "Darstellung"),
+        h("div", { class: "row" }, h("span", { class: "grow" }, "Design"),
+          segmented([["dark", "Dunkel"], ["light", "Hell"]], U.theme, theme => { U.theme = theme; saveUI(); render(); })),
+        h("div", { class: "row" }, h("span", { class: "grow" }, "Akzentfarbe"),
+          h("div", { class: "swatches" }, ACCENTS.map(color => h("button", { class: "swatch" + (color === U.accent ? " active" : ""), style: "background:" + color,
+            title: color, "aria-label": "Akzentfarbe " + color, onclick: () => { U.accent = color; saveUI(); render(); } })))),
+        h("div", { class: "row" }, h("span", { class: "grow" }, "Spektrum im Frequenzgang anzeigen"),
+          toggle(U.spectrum, value => { U.spectrum = value; saveUI(); }, "Spektrum anzeigen"))),
+      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, "Allgemein"),
+        h("div", { class: "row" }, h("span", { class: "grow" }, "Bei Anmeldung starten"),
+          toggle(R.launchAtLogin, value => post({ type: "setLaunchAtLogin", value }), "Bei Anmeldung starten")),
+        h("div", { class: "row" }, h("span", { class: "grow muted" }, "Setzt Klang, Mixer, Profile und Presets zurück."),
+          h("button", { onclick: () => {
+            if (!transient.confirmReset) { transient.confirmReset = true; render(); return; }
+            transient.confirmReset = false; post({ type: "resetAll" });
+          } }, transient.confirmReset ? "Wirklich alles zurücksetzen?" : "Alles zurücksetzen"),
+          h("button", { onclick: () => post({ type: "quit" }) }, "Beenden"))));
+  }
+  const VIEWS = { eq: eqView, mixer: mixerView, effects: effectsView, profiles: profilesView, settings: settingsView };
+
+  // ---------- Rahmen ----------
+  function paintHeader() {
+    document.body.classList.toggle("off", !S.enabled);
+    document.body.classList.toggle("light", U.theme === "light");
+    document.body.style.setProperty("--accent", U.accent);
+    $("enabled").checked = S.enabled;
+    $("device").textContent = S.enabled ? (R.device || "Kein Ausgabegerät") : "Ausgeschaltet";
+    $("device").title = R.device;
+    $("error").textContent = R.error;
+    $("error").classList.toggle("show", !!R.error);
+    $("presetName").textContent = U.selected[S.sound.eqMode] || "Eigene Einstellung";
+  }
+  function render() {
+    paintHeader();
+    $("tabs").replaceChildren(...TABS.map(([id, label]) => h("button", { class: id === U.tab ? "active" : "", onclick: () => {
+      U.tab = id; transient.savingPreset = false; transient.confirmReset = false; saveUI(); render();
+    } }, label)));
+    const view = $("view"), scroll = view.scrollTop;
+    view.replaceChildren((VIEWS[U.tab] || eqView)());
+    view.scrollTop = scroll;
+    drawGraph();
+    paintMeters();
+  }
+
+  window.addEventListener("pointerdown", () => { pointerDown = true; }, true);
+  window.addEventListener("pointerup", () => { pointerDown = false; }, true);
+  window.addEventListener("pointercancel", () => { pointerDown = false; }, true);
+  window.addEventListener("resize", drawGraph);
+  const isEditing = () => { const el = document.activeElement; return !!el && (el.tagName === "TEXTAREA" || el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "text" || el.type === "number"))); };
+
+  $("enabled").addEventListener("change", event => { S.enabled = event.target.checked; save("enabled"); paintHeader(); });
+  $("prevPreset").addEventListener("click", () => stepPreset(-1));
+  $("nextPreset").addEventListener("click", () => stepPreset(1));
+
+  window.klang = {
+    update(state) {
+      const catalog = state.catalog || R.catalog, spectrum = state.running ? R.spectrum : null;
+      const busy = !state.force && (pointerDown || isEditing());
+      const levels = state.running ? R.levels : { in: 0, out: 0 };
+      R = state; R.catalog = catalog; R.spectrum = spectrum; R.levels = levels;
+      if (busy) { S.enabled = state.settings.enabled; paintHeader(); return; }
+      S = state.settings;
+      U = mergeUI(S.ui);
+      render();
+    },
+    spectrum(payload) {
+      R.spectrum = payload.bands;
+      R.levels = { in: payload.in, out: payload.out };
+      paintMeters();
+      if (U.tab === "eq" && U.spectrum) drawGraph();
+    },
+    headphones(payload) {
+      transient.headphoneError = payload.error || "";
+      transient.headphones = payload.results || [];
+      const list = $("headphoneResults");
+      if (list) list.replaceChildren(...headphoneItems());
+    },
+    headphoneLoaded(payload) {
+      if (payload.error) { transient.headphoneError = payload.error; const list = $("headphoneResults"); if (list) list.replaceChildren(...headphoneItems()); return; }
+      const parsed = parseAPO(payload.text);
+      if (!parsed) return;
+      applyData("expert", parsed);
+      S.sound.eqMode = "expert";
+      U.presets.expert = (U.presets.expert || []).filter(p => p.name !== payload.name).concat({ name: payload.name, data: parsed });
+      U.selected.expert = payload.name;
+      transient.expertPanel = null;
+      saveUI(); saveSound(); render();
+    },
+  };
+
+  render();
+  post({ type: "ready" });
+})();
+</script>
+</body>
+</html>
