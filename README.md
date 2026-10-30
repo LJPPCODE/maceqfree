@@ -52,3 +52,7 @@ Schickt einen 1-kHz-Sinus durch Processor und Effekte und prüft Pegel, EQ-Modi,
 | `Resources/ui/index.html` | Komplette Oberfläche |
 
 Log: `~/Library/Logs/KlangEQ.log`
+
+## Lizenz
+
+MIT, siehe [LICENSE](LICENSE).
