@@ -74,7 +74,7 @@ final class AudioEngine {
     func outputDevices() -> [OutputDevice] {
         Self.objects(Self.system, kAudioHardwarePropertyDevices).compactMap { device in
             guard Self.channelCount(device, scope: kAudioObjectPropertyScopeOutput) > 0,
-                  let described = describe(device), !described.uid.hasPrefix("de.leon.klangeq") else { return nil }
+                  let described = describe(device), !described.uid.hasPrefix("de.leon.maceqfree") else { return nil }
             return described
         }
     }
@@ -155,17 +155,17 @@ final class AudioEngine {
 
         do {
             for description in descriptions {
-                description.name = "KlangEQ"
+                description.name = "MacEQfree"
                 description.isPrivate = true
                 description.muteBehavior = .mutedWhenTapped
                 var tap = AudioObjectID(kAudioObjectUnknown)
-                try check(AudioHardwareCreateProcessTap(description, &tap), "Systemton konnte nicht abgegriffen werden")
+                try check(AudioHardwareCreateProcessTap(description, &tap), L10n.t("tapFailed"))
                 tapIDs.append(tap)
             }
 
             let aggregate: [String: Any] = [
-                kAudioAggregateDeviceNameKey: "KlangEQ",
-                kAudioAggregateDeviceUIDKey: "de.leon.klangeq.aggregate." + UUID().uuidString,
+                kAudioAggregateDeviceNameKey: "MacEQfree",
+                kAudioAggregateDeviceUIDKey: "de.leon.maceqfree.aggregate." + UUID().uuidString,
                 kAudioAggregateDeviceMainSubDeviceKey: output.uid,
                 kAudioAggregateDeviceIsPrivateKey: true,
                 kAudioAggregateDeviceIsStackedKey: false,
@@ -175,7 +175,7 @@ final class AudioEngine {
                     [kAudioSubTapDriftCompensationKey: true, kAudioSubTapUIDKey: $0.uuid.uuidString] as [String: Any]
                 },
             ]
-            try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID), "Audiogerät konnte nicht angelegt werden")
+            try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID), L10n.t("aggregateFailed"))
 
             // Die Taps liegen in Listenreihenfolge hintereinander im Eingang.
             var layout: [(offset: Int, channels: Int)] = []
@@ -184,11 +184,11 @@ final class AudioEngine {
                 var format = AudioStreamBasicDescription()
                 var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
                 var address = Self.address(kAudioTapPropertyFormat)
-                try check(AudioObjectGetPropertyData(tap, &address, 0, nil, &size, &format), "Tap-Format nicht lesbar")
+                try check(AudioObjectGetPropertyData(tap, &address, 0, nil, &size, &format), L10n.t("tapFormat"))
                 guard format.mFormatID == kAudioFormatLinearPCM,
                       format.mFormatFlags & kAudioFormatFlagIsFloat != 0,
                       format.mBitsPerChannel == 32, format.mChannelsPerFrame > 0 else {
-                    throw EngineError(message: "Nicht unterstütztes Audioformat des Systemtons.")
+                    throw EngineError(message: L10n.t("unsupportedFormat"))
                 }
                 layout.append((offset, Int(format.mChannelsPerFrame)))
                 offset += Int(format.mChannelsPerFrame)
@@ -217,8 +217,8 @@ final class AudioEngine {
             let processor = self.processor
             try check(AudioDeviceCreateIOProcIDWithBlock(&procID, aggregateID, nil) { _, input, _, output, _ in
                 processor.render(input: input, output: output)
-            }, "Audioverarbeitung konnte nicht eingerichtet werden")
-            try check(AudioDeviceStart(aggregateID, procID), "Audioverarbeitung konnte nicht gestartet werden")
+            }, L10n.t("ioSetupFailed"))
+            try check(AudioDeviceStart(aggregateID, procID), L10n.t("ioStartFailed"))
         } catch {
             teardown()
             Log.write("Start fehlgeschlagen: \(error.localizedDescription)")
@@ -263,13 +263,13 @@ final class AudioEngine {
         var address = Self.address(kAudioHardwarePropertyTranslatePIDToProcessObject)
         let status = AudioObjectGetPropertyData(Self.system, &address, UInt32(MemoryLayout<pid_t>.size), &pid, &size, &object)
         guard status == noErr, object != kAudioObjectUnknown else {
-            throw EngineError(message: "Eigener Audioprozess nicht gefunden (Fehler \(status)).")
+            throw EngineError(message: L10n.t("errorCode", L10n.t("ownProcess"), status))
         }
         return object
     }
 
     private func check(_ status: OSStatus, _ what: String) throws {
-        guard status == noErr else { throw EngineError(message: "\(what) (Fehler \(status)).") }
+        guard status == noErr else { throw EngineError(message: L10n.t("errorCode", what, status)) }
     }
 
     // MARK: Core-Audio-Helfer

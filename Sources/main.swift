@@ -1,7 +1,7 @@
 import AppKit
 import CoreAudio
 
-/// `KlangEQ --dsptest` prüft die Signalkette ohne Audiogerät und ohne
+/// `MacEQfree --dsptest` prüft die Signalkette ohne Audiogerät und ohne
 /// Aufnahme-Erlaubnis: ein Sinus läuft durch Processor und Effekte.
 func runDSPTest() -> Never {
     let sampleRate = 48000.0

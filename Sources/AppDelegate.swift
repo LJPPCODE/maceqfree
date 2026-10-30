@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     private static let autoEqBase = "https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        L10n.use(settings.language)
         buildMenu()
         buildStatusItem()
         buildWindow()
@@ -59,20 +60,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
 
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Fenster schließen", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        appMenu.addItem(withTitle: "KlangEQ beenden", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: L10n.t("closeWindow"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        appMenu.addItem(withTitle: L10n.t("quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
 
         let editItem = NSMenuItem()
-        let editMenu = NSMenu(title: "Bearbeiten")
-        editMenu.addItem(withTitle: "Widerrufen", action: Selector(("undo:")), keyEquivalent: "z")
-        editMenu.addItem(withTitle: "Wiederholen", action: Selector(("redo:")), keyEquivalent: "Z")
+        let editMenu = NSMenu(title: L10n.t("edit"))
+        editMenu.addItem(withTitle: L10n.t("undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: L10n.t("redo"), action: Selector(("redo:")), keyEquivalent: "Z")
         editMenu.addItem(.separator())
-        editMenu.addItem(withTitle: "Ausschneiden", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        editMenu.addItem(withTitle: "Kopieren", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        editMenu.addItem(withTitle: "Einsetzen", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        editMenu.addItem(withTitle: "Alles auswählen", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(withTitle: L10n.t("cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L10n.t("copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L10n.t("paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L10n.t("selectAll"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = editMenu
         main.addItem(editItem)
 
@@ -82,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     private func buildStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            let image = NSImage(systemSymbolName: "slider.vertical.3", accessibilityDescription: "KlangEQ")
+            let image = NSImage(systemSymbolName: "slider.vertical.3", accessibilityDescription: "MacEQfree")
             image?.isTemplate = true
             button.image = image
             button.target = self
@@ -97,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         webView.setValue(false, forKey: "drawsBackground")
 
         window = NSWindow(contentRect: webView.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "KlangEQ"
+        window.title = "MacEQfree"
         window.backgroundColor = NSColor(srgbRed: 0.169, green: 0.173, blue: 0.192, alpha: 1)
         window.appearance = NSAppearance(named: .darkAqua)
         window.titlebarAppearsTransparent = true
@@ -164,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             return
         }
         guard let output = resolvedOutput() else {
-            fail("Kein Ausgabegerät gefunden.")
+            fail(L10n.t("noOutput"))
             return
         }
         let custom = apps.filter { settings.appVolumes[$0.id]?.isCustom == true }.prefix(Processor.maxTaps - 1)
@@ -242,7 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                 }
                 lastError = nil
             } catch {
-                lastError = "Start bei Anmeldung ließ sich nicht ändern: \(error.localizedDescription)"
+                lastError = L10n.t("loginFailed", error.localizedDescription)
             }
             pushState()
         case "headphoneSearch":
@@ -251,8 +252,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             if let path = body["path"] as? String, let name = body["name"] as? String { headphoneLoad(path: path, name: name) }
         case "resetAll":
             let enabled = settings.enabled
+            let language = settings.language
             settings = Settings()
             settings.enabled = enabled
+            settings.language = language
             lastAutoKey = ""
             applySound()
             reconfigure()
@@ -302,6 +305,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             lastAutoKey = ""
         case "ui":
             settings.ui = (value as? String) ?? "{}"
+        case "language":
+            let language = (value as? String) ?? ""
+            settings.language = language.isEmpty ? nil : language
+            L10n.use(settings.language)
+            buildMenu()
+            settings.save()
+            pushState(force: true)
+            return
         default:
             return
         }
@@ -317,7 +328,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     private func call(_ function: String, _ payload: Any) {
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let json = String(data: data, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("window.klang && window.klang.\(function)(\(json))", completionHandler: nil)
+        webView.evaluateJavaScript("window.eq && window.eq.\(function)(\(json))", completionHandler: nil)
     }
 
     private func pushState(force: Bool = false, includeCatalog: Bool = false) {
@@ -338,6 +349,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             "runningApps": regular,
             "launchAtLogin": SMAppService.mainApp.status == .enabled,
             "sampleRate": engine.sampleRate,
+            "language": L10n.language,
             "force": force,
         ]
         if includeCatalog,
@@ -390,7 +402,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             DispatchQueue.main.async {
                 guard let data, (response as? HTTPURLResponse)?.statusCode == 200,
                       let text = String(data: data, encoding: .utf8) else {
-                    completion("Kopfhörer-Liste nicht erreichbar: \(error?.localizedDescription ?? "Serverfehler")")
+                    completion(L10n.t("headphoneList", error?.localizedDescription ?? L10n.t("serverError")))
                     return
                 }
                 let pattern = try! NSRegularExpression(pattern: #"^- \[(.+)\]\(\./(.+)\) by (.+)$"#, options: .anchorsMatchLines)
@@ -429,7 +441,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             DispatchQueue.main.async {
                 guard let data, (response as? HTTPURLResponse)?.statusCode == 200,
                       let text = String(data: data, encoding: .utf8) else {
-                    self.call("headphoneLoaded", ["error": "Preset nicht ladbar: \(error?.localizedDescription ?? "nicht gefunden")"])
+                    self.call("headphoneLoaded", ["error": L10n.t("presetLoad", error?.localizedDescription ?? L10n.t("notFound"))])
                     return
                 }
                 self.call("headphoneLoaded", ["error": "", "name": name, "text": text])

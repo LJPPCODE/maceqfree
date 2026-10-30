@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>KlangEQ</title>
+<title>MacEQfree</title>
 <style>
   body {
     --bg: #2b2c31; --bg2: #232428; --well: #1c1d21; --line: #3a3b42; --line-strong: #5a5b64;
@@ -190,20 +190,20 @@
   <header>
     <div class="side" id="device">–</div>
     <div class="preset-tab">
-      <button class="nav" id="prevPreset" title="Vorheriges Preset" aria-label="Vorheriges Preset">‹</button>
+      <button class="nav" id="prevPreset">‹</button>
       <div id="presetName">Flat</div>
-      <button class="nav" id="nextPreset" title="Nächstes Preset" aria-label="Nächstes Preset">›</button>
+      <button class="nav" id="nextPreset">›</button>
     </div>
     <div class="side right">
-      <label class="switch big" title="KlangEQ ein/aus">
-        <input type="checkbox" id="enabled" aria-label="KlangEQ ein/aus"><span></span>
+      <label class="switch big" id="enabledLabel">
+        <input type="checkbox" id="enabled"><span></span>
       </label>
     </div>
   </header>
   <div id="error" role="alert"></div>
   <nav id="tabs"></nav>
   <main id="view"></main>
-  <footer>KLANGEQ</footer>
+  <footer>MACEQFREE</footer>
 
 <script>
 (function () {
@@ -218,7 +218,7 @@
 
   // ---------- Daten ----------
   const FREQS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
-  const TYPES = { peak: "Glocke", lowshelf: "Tiefen-Shelf", highshelf: "Höhen-Shelf", lowpass: "Tiefpass", highpass: "Hochpass", bandpass: "Bandpass", notch: "Kerbfilter" };
+  const TYPES = ["peak", "lowshelf", "highshelf", "lowpass", "highpass", "bandpass", "notch"];
   const APO = { peak: "PK", lowshelf: "LSC", highshelf: "HSC", lowpass: "LPQ", highpass: "HPQ", bandpass: "BP", notch: "NO" };
   const APO_IN = { PK: "peak", PEQ: "peak", LS: "lowshelf", LSC: "lowshelf", LSQ: "lowshelf", HS: "highshelf", HSC: "highshelf", HSQ: "highshelf", LP: "lowpass", LPQ: "lowpass", HP: "highpass", HPQ: "highpass", BP: "bandpass", NO: "notch" };
   const HAS_GAIN = { peak: true, lowshelf: true, highshelf: true };
@@ -245,7 +245,176 @@
     expert: [{ name: "Flat", data: { preamp: 0, bands: DEFAULT_BANDS } }],
   };
   const ACCENTS = ["#3fc1b0", "#4db5ff", "#b06be0", "#ff5f8a", "#ffa07a", "#e8e36b"];
-  const TABS = [["eq", "Equalizer"], ["mixer", "Mixer"], ["effects", "Klang & Effekte"], ["profiles", "Profile"], ["settings", "Einstellungen"]];
+  const TABS = ["eq", "mixer", "effects", "profiles", "settings"];
+
+  // ---------- Sprache ----------
+  // Reihenfolge je Zeile: de, en, it, es, fr. Platzhalter {0}, {1} …
+  const LANGS = ["de", "en", "it", "es", "fr"];
+  const LANG_NAMES = { de: "Deutsch", en: "English", it: "Italiano", es: "Español", fr: "Français" };
+  const TEXT = {
+    "tab.eq": ["Equalizer", "Equalizer", "Equalizzatore", "Ecualizador", "Égaliseur"],
+    "tab.mixer": ["Mixer", "Mixer", "Mixer", "Mezclador", "Mixeur"],
+    "tab.effects": ["Klang & Effekte", "Sound & Effects", "Suono ed effetti", "Sonido y efectos", "Son et effets"],
+    "tab.profiles": ["Profile", "Profiles", "Profili", "Perfiles", "Profils"],
+    "tab.settings": ["Einstellungen", "Settings", "Impostazioni", "Ajustes", "Réglages"],
+    prevPreset: ["Vorheriges Preset", "Previous preset", "Preset precedente", "Preset anterior", "Préréglage précédent"],
+    nextPreset: ["Nächstes Preset", "Next preset", "Preset successivo", "Preset siguiente", "Préréglage suivant"],
+    toggleApp: ["MacEQfree ein/aus", "MacEQfree on/off", "MacEQfree on/off", "Activar/desactivar MacEQfree", "Activer/désactiver MacEQfree"],
+    "type.peak": ["Glocke", "Peak", "Campana", "Campana", "Cloche"],
+    "type.lowshelf": ["Tiefen-Shelf", "Low shelf", "Shelf bassi", "Shelf de graves", "Shelf graves"],
+    "type.highshelf": ["Höhen-Shelf", "High shelf", "Shelf alti", "Shelf de agudos", "Shelf aigus"],
+    "type.lowpass": ["Tiefpass", "Low-pass", "Passa-basso", "Paso bajo", "Passe-bas"],
+    "type.highpass": ["Hochpass", "High-pass", "Passa-alto", "Paso alto", "Passe-haut"],
+    "type.bandpass": ["Bandpass", "Band-pass", "Passa-banda", "Paso banda", "Passe-bande"],
+    "type.notch": ["Kerbfilter", "Notch", "Notch", "Notch", "Coupe-bande"],
+    "preset.Bass Boost": ["Bass Boost", "Bass Boost", "Boost bassi", "Realce de graves", "Boost basses"],
+    "preset.Höhen Boost": ["Höhen Boost", "Treble Boost", "Boost alti", "Realce de agudos", "Boost aigus"],
+    "preset.Bass Reducer": ["Bass Reducer", "Bass Reducer", "Riduci bassi", "Reducir graves", "Réduire basses"],
+    "preset.Höhen Reducer": ["Höhen Reducer", "Treble Reducer", "Riduci alti", "Reducir agudos", "Réduire aigus"],
+    "preset.Stimme": ["Stimme", "Voice", "Voce", "Voz", "Voix"],
+    "preset.Warm": ["Warm", "Warm", "Caldo", "Cálido", "Chaud"],
+    "preset.Klassik": ["Klassik", "Classical", "Classica", "Clásica", "Classique"],
+    "preset.Elektronisch": ["Elektronisch", "Electronic", "Elettronica", "Electrónica", "Électronique"],
+    "preset.Akustik": ["Akustik", "Acoustic", "Acustica", "Acústica", "Acoustique"],
+    "preset.Kleine Lautsprecher": ["Kleine Lautsprecher", "Small Speakers", "Piccoli altoparlanti", "Altavoces pequeños", "Petits haut-parleurs"],
+    presetName: ["Name des Presets", "Preset name", "Nome del preset", "Nombre del preset", "Nom du préréglage"],
+    save: ["Sichern", "Save", "Salva", "Guardar", "Enregistrer"],
+    saveDots: ["Sichern …", "Save …", "Salva …", "Guardar …", "Enregistrer …"],
+    cancel: ["Abbrechen", "Cancel", "Annulla", "Cancelar", "Annuler"],
+    "delete": ["Löschen", "Delete", "Elimina", "Eliminar", "Supprimer"],
+    bandOn: ["Band aktiv", "Band active", "Banda attiva", "Banda activa", "Bande active"],
+    filterType: ["Filtertyp", "Filter type", "Tipo di filtro", "Tipo de filtro", "Type de filtre"],
+    removeBand: ["Band entfernen", "Remove band", "Rimuovi banda", "Quitar banda", "Supprimer la bande"],
+    "col.type": ["Typ", "Type", "Tipo", "Tipo", "Type"],
+    "col.freq": ["Frequenz (Hz)", "Frequency (Hz)", "Frequenza (Hz)", "Frecuencia (Hz)", "Fréquence (Hz)"],
+    "col.gain": ["Pegel (dB)", "Gain (dB)", "Guadagno (dB)", "Ganancia (dB)", "Gain (dB)"],
+    "col.q": ["Güte (Q)", "Q factor", "Fattore Q", "Factor Q", "Facteur Q"],
+    addBand: ["+ Band", "+ Band", "+ Banda", "+ Banda", "+ Bande"],
+    preampDb: ["Vorverstärkung (dB)", "Preamp (dB)", "Preamplificazione (dB)", "Preamplificación (dB)", "Préampli (dB)"],
+    preamp: ["Vorverstärkung", "Preamp", "Preamplificazione", "Preamplificación", "Préampli"],
+    editText: ["Als Text bearbeiten …", "Edit as text …", "Modifica come testo …", "Editar como texto …", "Modifier en texte …"],
+    headphonePresets: ["Kopfhörer-Presets …", "Headphone presets …", "Preset cuffie …", "Presets de auriculares …", "Préréglages casque …"],
+    eqAsText: ["EQ als Text", "EQ as text", "EQ come testo", "EQ como texto", "EQ en texte"],
+    apoNote: ["Format wie bei AutoEq / Equalizer APO. Text hier einfügen oder kopieren.", "Same format as AutoEq / Equalizer APO. Paste or copy text here.",
+      "Stesso formato di AutoEq / Equalizer APO. Incolla o copia il testo qui.", "Mismo formato que AutoEq / Equalizer APO. Pega o copia el texto aquí.",
+      "Même format qu’AutoEq / Equalizer APO. Collez ou copiez le texte ici."],
+    copied: ["In die Zwischenablage kopiert.", "Copied to clipboard.", "Copiato negli appunti.", "Copiado al portapapeles.", "Copié dans le presse-papiers."],
+    copy: ["Kopieren", "Copy", "Copia", "Copiar", "Copier"],
+    noFilters: ["Keine gültigen Filterzeilen gefunden.", "No valid filter lines found.", "Nessuna riga di filtro valida trovata.",
+      "No se encontraron líneas de filtro válidas.", "Aucune ligne de filtre valide trouvée."],
+    apply: ["Übernehmen", "Apply", "Applica", "Aplicar", "Appliquer"],
+    searchHeadphonesPh: ["Kopfhörer suchen, z. B. „AirPods Pro“", "Search headphones, e.g. “AirPods Pro”", "Cerca cuffie, ad es. «AirPods Pro»",
+      "Buscar auriculares, p. ej. «AirPods Pro»", "Rechercher un casque, p. ex. « AirPods Pro »"],
+    searchHeadphones: ["Kopfhörer suchen", "Search headphones", "Cerca cuffie", "Buscar auriculares", "Rechercher un casque"],
+    autoEqNote: ["Korrekturkurven aus dem freien AutoEq-Projekt (wird aus dem Internet geladen).",
+      "Correction curves from the open AutoEq project (loaded from the internet).",
+      "Curve di correzione dal progetto libero AutoEq (caricate da internet).",
+      "Curvas de corrección del proyecto libre AutoEq (se cargan de internet).",
+      "Courbes de correction du projet libre AutoEq (chargées depuis internet)."],
+    nothingFound: ["Nichts gefunden.", "Nothing found.", "Nessun risultato.", "No se encontró nada.", "Aucun résultat."],
+    "btn.mono": ["MONO", "MONO", "MONO", "MONO", "MONO"],
+    "btn.mute": ["STUMM", "MUTE", "MUTO", "MUDO", "MUET"],
+    "btn.limit": ["LIMIT", "LIMIT", "LIMIT", "LIMIT", "LIMIT"],
+    "btn.spatial": ["RAUM", "SPACE", "SPAZIO", "ESPACIO", "ESPACE"],
+    volume: ["Lautstärke", "Volume", "Volume", "Volumen", "Volume"],
+    "mode.basic": ["Einfach", "Simple", "Semplice", "Simple", "Simple"],
+    "mode.advanced": ["Erweitert", "Advanced", "Avanzato", "Avanzado", "Avancé"],
+    "mode.expert": ["Experte", "Expert", "Esperto", "Experto", "Expert"],
+    bass: ["Bass", "Bass", "Bassi", "Graves", "Graves"],
+    mid: ["Mitten", "Mid", "Medi", "Medios", "Médiums"],
+    treble: ["Höhen", "Treble", "Alti", "Agudos", "Aigus"],
+    mixerNote: ["Lautstärke einzelner Apps. Angezeigt werden Apps, die gerade Ton ausgeben oder schon angepasst wurden.",
+      "Volume per app. Shows apps that are currently playing audio or have already been adjusted.",
+      "Volume delle singole app. Vengono mostrate le app che stanno riproducendo audio o che sono già state regolate.",
+      "Volumen por app. Se muestran las apps que están reproduciendo audio o que ya se han ajustado.",
+      "Volume par app. Sont affichées les apps qui émettent du son ou qui ont déjà été réglées."],
+    notRunning: ["läuft nicht", "not running", "non in esecuzione", "no se está ejecutando", "non lancée"],
+    playing: ["gibt Ton aus", "playing audio", "riproduce audio", "reproduciendo audio", "émet du son"],
+    silent: ["still", "silent", "in silenzio", "en silencio", "silencieuse"],
+    volumeOf: ["Lautstärke {0}", "Volume {0}", "Volume {0}", "Volumen de {0}", "Volume de {0}"],
+    mute: ["Stumm", "Mute", "Muto", "Silenciar", "Muet"],
+    muteOf: ["Stumm {0}", "Mute {0}", "Muto {0}", "Silenciar {0}", "Couper {0}"],
+    noApps: ["Im Moment gibt keine App Ton aus.", "No app is playing audio right now.", "Al momento nessuna app sta riproducendo audio.",
+      "Ahora mismo ninguna app está reproduciendo audio.", "Aucune app n’émet de son pour le moment."],
+    activeOf: ["{0} aktiv", "{0} active", "{0} attivo", "{0} activo", "{0} actif"],
+    removeEffect: ["Effekt entfernen", "Remove effect", "Rimuovi effetto", "Quitar efecto", "Supprimer l’effet"],
+    mix: ["Anteil (Dry/Wet)", "Mix (dry/wet)", "Mix (dry/wet)", "Mezcla (dry/wet)", "Mix (dry/wet)"],
+    chooseEffect: ["Effekt auswählen", "Choose effect", "Scegli effetto", "Elegir efecto", "Choisir un effet"],
+    sound: ["Klang", "Sound", "Suono", "Sonido", "Son"],
+    balance: ["Balance", "Balance", "Bilanciamento", "Balance", "Balance"],
+    center: ["Mitte", "Center", "Centro", "Centro", "Centre"],
+    left: ["L", "L", "S", "I", "G"],
+    right: ["R", "R", "D", "D", "D"],
+    mono: ["Mono", "Mono", "Mono", "Mono", "Mono"],
+    limiterLong: ["Limiter (schützt vor Übersteuern)", "Limiter (prevents clipping)", "Limiter (evita la saturazione)",
+      "Limitador (evita la saturación)", "Limiteur (évite la saturation)"],
+    spatial: ["Raumklang", "Spatial sound", "Suono spaziale", "Sonido espacial", "Son spatial"],
+    spatialOn: ["Raumklang aktiv", "Spatial sound on", "Suono spaziale attivo", "Sonido espacial activo", "Son spatial activé"],
+    width: ["Stereobreite", "Stereo width", "Ampiezza stereo", "Amplitud estéreo", "Largeur stéréo"],
+    crossfeed: ["Übersprechen", "Crossfeed", "Crossfeed", "Crossfeed", "Crossfeed"],
+    crossfeedNote: ["Übersprechen mischt etwas vom jeweils anderen Kanal bei – angenehmer mit Kopfhörern.",
+      "Crossfeed blends in some of the opposite channel – more comfortable on headphones.",
+      "Il crossfeed mescola un po’ del canale opposto: più piacevole in cuffia.",
+      "El crossfeed mezcla algo del canal opuesto: más cómodo con auriculares.",
+      "Le crossfeed mélange un peu du canal opposé : plus agréable au casque."],
+    effects: ["Effekte", "Effects", "Effetti", "Efectos", "Effets"],
+    add: ["Hinzufügen", "Add", "Aggiungi", "Añadir", "Ajouter"],
+    profileName: ["Name des Profils", "Profile name", "Nome del profilo", "Nombre del perfil", "Nom du profil"],
+    trigger: ["Auslöser", "Trigger", "Attivatore", "Activador", "Déclencheur"],
+    profile: ["Profil", "Profile", "Profilo", "Perfil", "Profil"],
+    profileNote: ["Ein Profil sichert den gesamten Klang: Equalizer, Lautstärke, Raumklang und Effekte.",
+      "A profile saves the entire sound: equalizer, volume, spatial sound and effects.",
+      "Un profilo salva l’intero suono: equalizzatore, volume, suono spaziale ed effetti.",
+      "Un perfil guarda todo el sonido: ecualizador, volumen, sonido espacial y efectos.",
+      "Un profil enregistre tout le son : égaliseur, volume, son spatial et effets."],
+    saveCurrent: ["Aktuellen Klang sichern", "Save current sound", "Salva il suono attuale", "Guardar sonido actual", "Enregistrer le son actuel"],
+    load: ["Laden", "Load", "Carica", "Cargar", "Charger"],
+    autoSwitch: ["Automatisch umschalten", "Switch automatically", "Cambio automatico", "Cambio automático", "Changement automatique"],
+    autoSwitchNote: ["Lädt ein Profil, sobald ein Ausgabegerät aktiv ist oder eine App im Vordergrund steht. App-Regeln haben Vorrang.",
+      "Loads a profile when an output device becomes active or an app comes to the front. App rules take priority.",
+      "Carica un profilo quando un dispositivo di uscita è attivo o un’app è in primo piano. Le regole per app hanno la precedenza.",
+      "Carga un perfil cuando un dispositivo de salida está activo o una app pasa a primer plano. Las reglas de app tienen prioridad.",
+      "Charge un profil dès qu’un périphérique de sortie est actif ou qu’une app passe au premier plan. Les règles d’app sont prioritaires."],
+    device: ["Gerät", "Device", "Dispositivo", "Dispositivo", "Appareil"],
+    app: ["App", "App", "App", "App", "App"],
+    removeRule: ["Regel entfernen", "Remove rule", "Rimuovi regola", "Quitar regla", "Supprimer la règle"],
+    outputDevice: ["Ausgabegerät", "Output device", "Dispositivo di uscita", "Dispositivo de salida", "Périphérique de sortie"],
+    systemDefault: ["Systemstandard", "System default", "Predefinito di sistema", "Predeterminado del sistema", "Par défaut du système"],
+    output: ["Ausgabe", "Output", "Uscita", "Salida", "Sortie"],
+    outputNote: ["Der bearbeitete Ton wird auf diesem Gerät ausgegeben.", "The processed audio plays on this device.",
+      "L’audio elaborato viene riprodotto su questo dispositivo.", "El audio procesado se reproduce en este dispositivo.",
+      "Le son traité est diffusé sur cet appareil."],
+    appearance: ["Darstellung", "Appearance", "Aspetto", "Apariencia", "Apparence"],
+    theme: ["Design", "Theme", "Tema", "Tema", "Thème"],
+    dark: ["Dunkel", "Dark", "Scuro", "Oscuro", "Sombre"],
+    light: ["Hell", "Light", "Chiaro", "Claro", "Clair"],
+    accent: ["Akzentfarbe", "Accent color", "Colore d’accento", "Color de acento", "Couleur d’accent"],
+    showSpectrumLong: ["Spektrum im Frequenzgang anzeigen", "Show spectrum in frequency response", "Mostra lo spettro nella risposta in frequenza",
+      "Mostrar espectro en la respuesta de frecuencia", "Afficher le spectre dans la réponse en fréquence"],
+    showSpectrum: ["Spektrum anzeigen", "Show spectrum", "Mostra spettro", "Mostrar espectro", "Afficher le spectre"],
+    language: ["Sprache", "Language", "Lingua", "Idioma", "Langue"],
+    languageAuto: ["Automatisch (System)", "Automatic (system)", "Automatica (sistema)", "Automático (sistema)", "Automatique (système)"],
+    general: ["Allgemein", "General", "Generale", "General", "Général"],
+    launchAtLogin: ["Bei Anmeldung starten", "Launch at login", "Avvia al login", "Abrir al iniciar sesión", "Ouvrir à la connexion"],
+    resetNote: ["Setzt Klang, Mixer, Profile und Presets zurück.", "Resets sound, mixer, profiles and presets.",
+      "Ripristina suono, mixer, profili e preset.", "Restablece sonido, mezclador, perfiles y presets.",
+      "Réinitialise le son, le mixeur, les profils et les préréglages."],
+    resetConfirm: ["Wirklich alles zurücksetzen?", "Really reset everything?", "Ripristinare davvero tutto?", "¿Restablecer todo de verdad?", "Vraiment tout réinitialiser ?"],
+    resetAll: ["Alles zurücksetzen", "Reset everything", "Ripristina tutto", "Restablecer todo", "Tout réinitialiser"],
+    quit: ["Beenden", "Quit", "Esci", "Salir", "Quitter"],
+    noDevice: ["Kein Ausgabegerät", "No output device", "Nessun dispositivo di uscita", "Sin dispositivo de salida", "Aucun périphérique de sortie"],
+    off: ["Ausgeschaltet", "Off", "Spento", "Apagado", "Désactivé"],
+    custom: ["Eigene Einstellung", "Custom", "Personalizzato", "Personalizado", "Personnalisé"],
+  };
+  let lang = "en";
+  const t = (key, ...args) => {
+    const row = TEXT[key];
+    if (!row) return key;
+    return row[Math.max(0, LANGS.indexOf(lang))].replace(/\{(\d)\}/g, (_, i) => args[i]);
+  };
+  const pct = value => value + (lang === "en" ? "%" : " %");
+  /** Eingebaute Presets bleiben intern unter ihrem deutschen Namen gespeichert. */
+  const presetLabel = (mode, name) => name && BUILTIN[mode].some(p => p.name === name) && TEXT["preset." + name] ? t("preset." + name) : name;
 
   const defaultUI = () => ({
     tab: "eq", theme: "dark", accent: ACCENTS[0], spectrum: true,
@@ -294,7 +463,7 @@
     }
     return element;
   }
-  const num = (value, digits) => Number(value).toFixed(digits == null ? 1 : digits).replace(/\.0+$/, "").replace(".", ",");
+  const num = (value, digits) => Number(value).toFixed(digits == null ? 1 : digits).replace(/\.0+$/, "").replace(".", lang === "en" ? "." : ",");
   const formatDb = value => (value > 0 ? "+" : value < 0 ? "−" : "") + num(Math.abs(value));
   const formatFreq = hz => hz >= 1000 ? num(hz / 1000) + "k" : String(hz);
 
@@ -467,10 +636,10 @@
     };
     const cancel = () => { transient.savingPreset = false; render(); };
     const existing = (U.presets[mode] || []).find(p => p.name === U.selected[mode]);
-    const input = h("input", { type: "text", class: "grow", maxLength: 60, placeholder: "Name des Presets", value: existing ? existing.name : "",
-      "aria-label": "Name des Presets", onkeydown: event => { if (event.key === "Enter") confirm(); if (event.key === "Escape") cancel(); } });
+    const input = h("input", { type: "text", class: "grow", maxLength: 60, placeholder: t("presetName"), value: existing ? existing.name : "",
+      "aria-label": t("presetName"), onkeydown: event => { if (event.key === "Enter") confirm(); if (event.key === "Escape") cancel(); } });
     setTimeout(() => { input.focus(); input.select(); });
-    return h("div", { class: "row" }, input, h("button", { class: "primary", onclick: confirm }, "Sichern"), h("button", { onclick: cancel }, "Abbrechen"));
+    return h("div", { class: "row" }, input, h("button", { class: "primary", onclick: confirm }, t("save")), h("button", { onclick: cancel }, t("cancel")));
   }
 
   // ---------- Frequenzgang ----------
@@ -640,43 +809,43 @@
       "aria-label": key, oninput: event => { const v = Number(event.target.value); if (event.target.value !== "" && isFinite(v)) { band[key] = clamp(v, min, max); changed(); } },
       onchange: event => { event.target.value = band[key]; } });
     const rows = s.expert.map((band, index) => [
-      h("input", { type: "checkbox", checked: band.on, "aria-label": "Band aktiv", onchange: event => { band.on = event.target.checked; changed(); } }),
-      h("select", { value: band.type, "aria-label": "Filtertyp", onchange: event => { band.type = event.target.value; changed(); render(); } },
-        Object.keys(TYPES).map(type => h("option", { value: type }, TYPES[type]))),
+      h("input", { type: "checkbox", checked: band.on, "aria-label": t("bandOn"), onchange: event => { band.on = event.target.checked; changed(); } }),
+      h("select", { value: band.type, "aria-label": t("filterType"), onchange: event => { band.type = event.target.value; changed(); render(); } },
+        TYPES.map(type => h("option", { value: type }, t("type." + type)))),
       number(band, "freq", 10, 22000), number(band, "gain", -30, 30, !HAS_GAIN[band.type]), number(band, "q", 0.05, 30),
-      h("button", { class: "icon", title: "Band entfernen", "aria-label": "Band entfernen", onclick: () => { s.expert.splice(index, 1); changed(); render(); } }, "✕"),
+      h("button", { class: "icon", title: t("removeBand"), "aria-label": t("removeBand"), onclick: () => { s.expert.splice(index, 1); changed(); render(); } }, "✕"),
     ]);
     const editor = h("div", { class: "panel pad stack dim" },
-      h("div", { class: "bands" }, ["", "Typ", "Frequenz (Hz)", "Pegel (dB)", "Güte (Q)", ""].map(t => h("div", { class: "head" }, t)), rows),
+      h("div", { class: "bands" }, ["", t("col.type"), t("col.freq"), t("col.gain"), t("col.q"), ""].map(text => h("div", { class: "head" }, text)), rows),
       h("div", { class: "row" },
-        h("button", { disabled: s.expert.length >= 40, onclick: () => { s.expert.push({ type: "peak", freq: 1000, gain: 0, q: 1, on: true }); changed(); render(); } }, "+ Band"),
+        h("button", { disabled: s.expert.length >= 40, onclick: () => { s.expert.push({ type: "peak", freq: 1000, gain: 0, q: 1, on: true }); changed(); render(); } }, t("addBand")),
         h("span", { class: "grow" }),
-        h("span", { class: "muted" }, "Vorverstärkung (dB)"),
-        h("div", { style: "width:70px" }, h("input", { type: "number", value: s.expertPreamp, min: -30, max: 30, step: "any", "aria-label": "Vorverstärkung",
+        h("span", { class: "muted" }, t("preampDb")),
+        h("div", { style: "width:70px" }, h("input", { type: "number", value: s.expertPreamp, min: -30, max: 30, step: "any", "aria-label": t("preamp"),
           oninput: event => { const v = Number(event.target.value); if (event.target.value !== "" && isFinite(v)) { s.expertPreamp = clamp(v, -30, 30); changed(); } } }))),
       h("div", { class: "row" },
-        h("button", { onclick: () => { transient.expertPanel = transient.expertPanel === "text" ? null : "text"; render(); } }, "Als Text bearbeiten …"),
-        h("button", { onclick: () => { transient.expertPanel = transient.expertPanel === "headphones" ? null : "headphones"; render(); } }, "Kopfhörer-Presets …")));
+        h("button", { onclick: () => { transient.expertPanel = transient.expertPanel === "text" ? null : "text"; render(); } }, t("editText")),
+        h("button", { onclick: () => { transient.expertPanel = transient.expertPanel === "headphones" ? null : "headphones"; render(); } }, t("headphonePresets"))));
 
     if (transient.expertPanel === "text") {
-      const area = h("textarea", { value: toAPO(), spellcheck: false, "aria-label": "EQ als Text" });
-      const note = h("span", { class: "muted grow" }, "Format wie bei AutoEq / Equalizer APO. Text hier einfügen oder kopieren.");
+      const area = h("textarea", { value: toAPO(), spellcheck: false, "aria-label": t("eqAsText") });
+      const note = h("span", { class: "muted grow" }, t("apoNote"));
       return [editor, h("div", { class: "panel pad stack" }, area, h("div", { class: "row" }, note,
-        h("button", { onclick: () => { area.select(); document.execCommand("copy"); note.textContent = "In die Zwischenablage kopiert."; } }, "Kopieren"),
+        h("button", { onclick: () => { area.select(); document.execCommand("copy"); note.textContent = t("copied"); } }, t("copy")),
         h("button", { class: "primary", onclick: () => {
           const parsed = parseAPO(area.value);
-          if (!parsed) { note.textContent = "Keine gültigen Filterzeilen gefunden."; return; }
+          if (!parsed) { note.textContent = t("noFilters"); return; }
           applyData("expert", parsed); transient.expertPanel = null; changed(); render();
-        } }, "Übernehmen")))];
+        } }, t("apply"))))];
     }
     if (transient.expertPanel === "headphones") {
       let timer;
-      const input = h("input", { type: "text", class: "grow", placeholder: "Kopfhörer suchen, z. B. „AirPods Pro“", "aria-label": "Kopfhörer suchen",
+      const input = h("input", { type: "text", class: "grow", placeholder: t("searchHeadphonesPh"), "aria-label": t("searchHeadphones"),
         oninput: event => { clearTimeout(timer); const query = event.target.value.trim(); timer = setTimeout(() => { if (query.length >= 2) post({ type: "headphoneSearch", query }); }, 300); } });
       setTimeout(() => input.focus());
       return [editor, h("div", { class: "panel stack", style: "gap:0" },
         h("div", { class: "pad stack" }, h("div", { class: "row" }, input),
-          h("div", { class: "muted" }, "Korrekturkurven aus dem freien AutoEq-Projekt (wird aus dem Internet geladen).")),
+          h("div", { class: "muted" }, t("autoEqNote"))),
         h("div", { class: "list results", id: "headphoneResults" }, headphoneItems()))];
     }
     return [editor];
@@ -684,7 +853,7 @@
   function headphoneItems() {
     if (transient.headphoneError) return [h("div", { class: "item muted" }, transient.headphoneError)];
     if (!transient.headphones) return [];
-    if (!transient.headphones.length) return [h("div", { class: "item muted" }, "Nichts gefunden.")];
+    if (!transient.headphones.length) return [h("div", { class: "item muted" }, t("nothingFound"))];
     return transient.headphones.map(entry => h("div", { class: "item link", onclick: () => post({ type: "headphoneLoad", path: entry.path, name: entry.name }) },
       h("div", { class: "title" }, entry.name), h("div", { class: "sub" }, entry.source)));
   }
@@ -694,10 +863,10 @@
     const round = (label, on, flip) => h("button", { class: "round" + (on ? " on" : ""), "aria-pressed": String(!!on), onclick: () => { flip(); saveSound(); render(); } }, label);
     return h("div", { class: "master dim" },
       meter("in"),
-      h("div", { class: "col" }, round("MONO", s.mono, () => { s.mono = !s.mono; }), round("STUMM", s.muted, () => { s.muted = !s.muted; })),
-      knob({ size: 176, value: Math.round(s.volume * 100), min: 0, max: 200, step: 1, reset: 100, label: "Lautstärke", unit: "%", format: String, boostAbove: 100,
+      h("div", { class: "col" }, round(t("btn.mono"), s.mono, () => { s.mono = !s.mono; }), round(t("btn.mute"), s.muted, () => { s.muted = !s.muted; })),
+      knob({ size: 176, value: Math.round(s.volume * 100), min: 0, max: 200, step: 1, reset: 100, label: t("volume"), unit: "%", format: String, boostAbove: 100,
         onInput: value => { s.volume = value / 100; saveSound(); } }),
-      h("div", { class: "col" }, round("LIMIT", s.limiter, () => { s.limiter = !s.limiter; }), round("RAUM", s.spatialOn, () => { s.spatialOn = !s.spatialOn; })),
+      h("div", { class: "col" }, round(t("btn.limit"), s.limiter, () => { s.limiter = !s.limiter; }), round(t("btn.spatial"), s.spatialOn, () => { s.spatialOn = !s.spatialOn; })),
       meter("out"));
   }
 
@@ -705,19 +874,19 @@
     const s = S.sound, mode = s.eqMode;
     const selected = presetsFor(mode).find(p => p.name === U.selected[mode]);
     const controls = transient.savingPreset ? savePresetRow(mode) : h("div", { class: "row" },
-      segmented([["basic", "Einfach"], ["advanced", "Erweitert"], ["expert", "Experte"]], mode, next => { s.eqMode = next; saveSound(); render(); }),
+      segmented([["basic", t("mode.basic")], ["advanced", t("mode.advanced")], ["expert", t("mode.expert")]], mode, next => { s.eqMode = next; saveSound(); render(); }),
       h("span", { class: "grow" }),
-      h("button", { onclick: () => { transient.savingPreset = true; render(); } }, "Sichern …"),
+      h("button", { onclick: () => { transient.savingPreset = true; render(); } }, t("saveDots")),
       h("button", { id: "deletePreset", disabled: !selected || !!selected.builtin, onclick: () => {
         U.presets[mode] = U.presets[mode].filter(p => p.name !== selected.name);
         U.selected[mode] = "";
         saveUI(); render();
-      } }, "Löschen"),
+      } }, t("delete")),
       toggle(s.eqOn, value => { s.eqOn = value; saveSound(); }, "EQ", true));
     let body;
     if (mode === "expert") body = expertEditor();
     else if (mode === "basic") {
-      body = [h("div", { class: "knobs dim" }, ["Bass", "Mitten", "Höhen"].map((label, index) => knob({ size: 96, value: s.basic[index], min: -12, max: 12, step: 0.5, reset: 0,
+      body = [h("div", { class: "knobs dim" }, [t("bass"), t("mid"), t("treble")].map((label, index) => knob({ size: 96, value: s.basic[index], min: -12, max: 12, step: 0.5, reset: 0,
         label, unit: "dB", format: formatDb, onInput: value => { s.basic[index] = value; markCustom(mode); saveSound(); } })))];
     } else {
       body = [h("div", { class: "sliders dim" },
@@ -740,26 +909,26 @@
       save("appVolumes");
     };
     return h("div", { class: "stack" },
-      h("div", { class: "muted" }, "Lautstärke einzelner Apps. Angezeigt werden Apps, die gerade Ton ausgeben oder schon angepasst wurden."),
+      h("div", { class: "muted" }, t("mixerNote")),
       rows.length ? h("div", { class: "panel list dim" }, rows.map(app => {
         const entry = S.appVolumes[app.id] || { volume: 1, muted: false };
-        const output = h("output", null, Math.round(entry.volume * 100) + " %");
+        const output = h("output", null, pct(Math.round(entry.volume * 100)));
         return h("div", { class: "item" },
           app.icon ? h("img", { src: app.icon, alt: "" }) : h("div", { class: "placeholder" }),
-          h("div", { style: "width:120px;min-width:0" }, h("div", { class: "title" }, app.name), app.absent && h("div", { class: "sub" }, "läuft nicht")),
-          h("div", { class: "dot" + (app.playing ? "" : " idle"), title: app.playing ? "gibt Ton aus" : "still" }),
-          h("input", { type: "range", min: 0, max: 200, step: 1, value: Math.round(entry.volume * 100), "aria-label": "Lautstärke " + app.name,
-            oninput: event => { output.textContent = event.target.value + " %"; update(app, { volume: Number(event.target.value) / 100 }); },
+          h("div", { style: "width:120px;min-width:0" }, h("div", { class: "title" }, app.name), app.absent && h("div", { class: "sub" }, t("notRunning"))),
+          h("div", { class: "dot" + (app.playing ? "" : " idle"), title: app.playing ? t("playing") : t("silent") }),
+          h("input", { type: "range", min: 0, max: 200, step: 1, value: Math.round(entry.volume * 100), "aria-label": t("volumeOf", app.name),
+            oninput: event => { output.textContent = pct(event.target.value); update(app, { volume: Number(event.target.value) / 100 }); },
             onchange: event => { update(app, { volume: Number(event.target.value) / 100 }, true); render(); },
             ondblclick: () => { update(app, { volume: 1 }, true); render(); } }),
           output,
-          h("button", { class: "icon" + (entry.muted ? " on" : ""), title: "Stumm", "aria-label": "Stumm " + app.name, "aria-pressed": String(!!entry.muted),
+          h("button", { class: "icon" + (entry.muted ? " on" : ""), title: t("mute"), "aria-label": t("muteOf", app.name), "aria-pressed": String(!!entry.muted),
             onclick: () => { update(app, { muted: !entry.muted }, true); render(); } }, entry.muted ? "✕" : "♪"));
-      })) : h("div", { class: "panel pad muted" }, "Im Moment gibt keine App Ton aus."));
+      })) : h("div", { class: "panel pad muted" }, t("noApps")));
   }
 
   // ---------- Klang & Effekte ----------
-  const percent = value => Math.round(value * 100) + " %";
+  const percent = value => pct(Math.round(value * 100));
   function effectsView() {
     const s = S.sound;
     const catalog = {};
@@ -768,32 +937,32 @@
       const info = catalog[effect.component] || { name: effect.component, params: [] };
       return h("div", { class: "panel pad stack dim" },
         h("div", { class: "row" }, h("strong", { class: "grow" }, info.name),
-          toggle(effect.on, value => { effect.on = value; saveSound(); }, info.name + " aktiv"),
-          h("button", { class: "icon", title: "Effekt entfernen", "aria-label": "Effekt entfernen", onclick: () => { s.effects.splice(index, 1); saveSound(); render(); } }, "✕")),
+          toggle(effect.on, value => { effect.on = value; saveSound(); }, t("activeOf", info.name)),
+          h("button", { class: "icon", title: t("removeEffect"), "aria-label": t("removeEffect"), onclick: () => { s.effects.splice(index, 1); saveSound(); render(); } }, "✕")),
         h("div", { class: "field" },
-          field("Anteil (Dry/Wet)", { min: 0, max: 1, step: 0.01, value: effect.mix, format: percent, reset: 1, onInput: value => { effect.mix = value; saveSound(); } }),
+          field(t("mix"), { min: 0, max: 1, step: 0.01, value: effect.mix, format: percent, reset: 1, onInput: value => { effect.mix = value; saveSound(); } }),
           info.params.map(param => field(param.name, { min: param.min, max: param.max, step: param.step || (param.max - param.min) / 200,
             value: effect.params[param.id] != null ? effect.params[param.id] : param.def, reset: param.def,
             format: value => num(value, Math.abs(param.max - param.min) < 20 && !param.step ? 2 : 0) + (param.unit ? " " + param.unit : ""),
             onInput: value => { effect.params[param.id] = value; saveSound(); } }))));
     });
-    const picker = h("select", { class: "grow", "aria-label": "Effekt auswählen" }, R.catalog.map(info => h("option", { value: info.key }, info.name)));
+    const picker = h("select", { class: "grow", "aria-label": t("chooseEffect") }, R.catalog.map(info => h("option", { value: info.key }, info.name)));
     return h("div", { class: "stack" },
-      h("div", { class: "panel pad dim" }, h("h2", null, "Klang"),
+      h("div", { class: "panel pad dim" }, h("h2", null, t("sound")),
         h("div", { class: "field" },
-          field("Balance", { min: -1, max: 1, step: 0.05, value: s.balance, reset: 0,
-            format: value => Math.round(Math.abs(value) * 100) === 0 ? "Mitte" : (value < 0 ? "L " : "R ") + Math.round(Math.abs(value) * 100) + " %",
+          field(t("balance"), { min: -1, max: 1, step: 0.05, value: s.balance, reset: 0,
+            format: value => Math.round(Math.abs(value) * 100) === 0 ? t("center") : (value < 0 ? t("left") : t("right")) + " " + pct(Math.round(Math.abs(value) * 100)),
             onInput: value => { s.balance = value; saveSound(); } })),
         h("div", { class: "row", style: "margin-top:12px;gap:20px" },
-          toggle(s.mono, value => { s.mono = value; saveSound(); }, "Mono", true),
-          toggle(s.limiter, value => { s.limiter = value; saveSound(); }, "Limiter (schützt vor Übersteuern)", true))),
-      h("div", { class: "panel pad dim" }, h("div", { class: "row", style: "margin-bottom:8px" }, h("h2", { class: "grow", style: "margin:0" }, "Raumklang"),
-          toggle(s.spatialOn, value => { s.spatialOn = value; saveSound(); }, "Raumklang aktiv")),
+          toggle(s.mono, value => { s.mono = value; saveSound(); }, t("mono"), true),
+          toggle(s.limiter, value => { s.limiter = value; saveSound(); }, t("limiterLong"), true))),
+      h("div", { class: "panel pad dim" }, h("div", { class: "row", style: "margin-bottom:8px" }, h("h2", { class: "grow", style: "margin:0" }, t("spatial")),
+          toggle(s.spatialOn, value => { s.spatialOn = value; saveSound(); }, t("spatialOn"))),
         h("div", { class: "field" },
-          field("Stereobreite", { min: 0, max: 2, step: 0.01, value: s.width, format: percent, reset: 1, onInput: value => { s.width = value; saveSound(); } }),
-          field("Übersprechen", { min: 0, max: 1, step: 0.01, value: s.crossfeed, format: percent, reset: 0, onInput: value => { s.crossfeed = value; saveSound(); } })),
-        h("div", { class: "muted", style: "margin-top:8px" }, "Übersprechen mischt etwas vom jeweils anderen Kanal bei – angenehmer mit Kopfhörern.")),
-      h("div", null, h("h2", null, "Effekte"),
+          field(t("width"), { min: 0, max: 2, step: 0.01, value: s.width, format: percent, reset: 1, onInput: value => { s.width = value; saveSound(); } }),
+          field(t("crossfeed"), { min: 0, max: 1, step: 0.01, value: s.crossfeed, format: percent, reset: 0, onInput: value => { s.crossfeed = value; saveSound(); } })),
+        h("div", { class: "muted", style: "margin-top:8px" }, t("crossfeedNote"))),
+      h("div", null, h("h2", null, t("effects")),
         h("div", { class: "row" }, picker, h("button", { disabled: s.effects.length >= 8 || !R.catalog.length, onclick: () => {
           const info = catalog[picker.value];
           if (!info) return;
@@ -801,13 +970,13 @@
           info.params.forEach(param => { params[param.id] = param.def; });
           s.effects.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), component: info.key, on: true, mix: 1, params });
           saveSound(); render();
-        } }, "Hinzufügen"))),
+        } }, t("add")))),
       cards);
   }
 
   // ---------- Profile ----------
   function profilesView() {
-    const nameInput = h("input", { type: "text", class: "grow", maxLength: 60, placeholder: "Name des Profils", "aria-label": "Name des Profils",
+    const nameInput = h("input", { type: "text", class: "grow", maxLength: 60, placeholder: t("profileName"), "aria-label": t("profileName"),
       onkeydown: event => { if (event.key === "Enter") add(); } });
     const add = () => {
       const name = nameInput.value.trim();
@@ -816,84 +985,94 @@
       save("profiles"); render();
     };
     const sources = transient.ruleKind === "app" ? R.runningApps.map(app => [app.id, app.name]) : R.devices.map(device => [device.uid, device.name]);
-    const valueSelect = h("select", { class: "grow", "aria-label": "Auslöser" }, sources.map(([value, label]) => h("option", { value }, label)));
-    const profileSelect = h("select", { class: "grow", "aria-label": "Profil" }, S.profiles.map(p => h("option", { value: p.name }, p.name)));
+    const valueSelect = h("select", { class: "grow", "aria-label": t("trigger") }, sources.map(([value, label]) => h("option", { value }, label)));
+    const profileSelect = h("select", { class: "grow", "aria-label": t("profile") }, S.profiles.map(p => h("option", { value: p.name }, p.name)));
     return h("div", { class: "stack" },
-      h("div", { class: "muted" }, "Ein Profil sichert den gesamten Klang: Equalizer, Lautstärke, Raumklang und Effekte."),
-      h("div", { class: "row" }, nameInput, h("button", { class: "primary", onclick: add }, "Aktuellen Klang sichern")),
+      h("div", { class: "muted" }, t("profileNote")),
+      h("div", { class: "row" }, nameInput, h("button", { class: "primary", onclick: add }, t("saveCurrent"))),
       S.profiles.length ? h("div", { class: "panel list" }, S.profiles.map(profile => h("div", { class: "item" },
         h("div", { class: "title" }, profile.name),
-        h("button", { onclick: () => { S.sound = clone(profile.sound); saveSound(); render(); } }, "Laden"),
+        h("button", { onclick: () => { S.sound = clone(profile.sound); saveSound(); render(); } }, t("load")),
         h("button", { onclick: () => {
           S.profiles = S.profiles.filter(p => p !== profile);
           S.rules = S.rules.filter(rule => rule.profile !== profile.name);
           save("profiles"); save("rules"); render();
-        } }, "Löschen")))) : null,
+        } }, t("delete"))))) : null,
       h("div", { class: "panel pad stack" },
-        h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0" }, "Automatisch umschalten"),
-          toggle(S.autoSwitch, value => { S.autoSwitch = value; save("autoSwitch"); }, "Automatisch umschalten")),
-        h("div", { class: "muted" }, "Lädt ein Profil, sobald ein Ausgabegerät aktiv ist oder eine App im Vordergrund steht. App-Regeln haben Vorrang."),
+        h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0" }, t("autoSwitch")),
+          toggle(S.autoSwitch, value => { S.autoSwitch = value; save("autoSwitch"); }, t("autoSwitch"))),
+        h("div", { class: "muted" }, t("autoSwitchNote")),
         h("div", { class: "row" },
-          segmented([["device", "Gerät"], ["app", "App"]], transient.ruleKind, kind => { transient.ruleKind = kind; render(); }),
+          segmented([["device", t("device")], ["app", t("app")]], transient.ruleKind, kind => { transient.ruleKind = kind; render(); }),
           valueSelect, h("span", { class: "muted" }, "→"), profileSelect,
           h("button", { disabled: !S.profiles.length || !sources.length, onclick: () => {
             const label = (sources.find(([value]) => value === valueSelect.value) || [])[1] || valueSelect.value;
             S.rules = S.rules.filter(rule => !(rule.kind === transient.ruleKind && rule.value === valueSelect.value))
               .concat({ kind: transient.ruleKind, value: valueSelect.value, label, profile: profileSelect.value });
             save("rules"); render();
-          } }, "Hinzufügen")),
+          } }, t("add"))),
         S.rules.length ? h("div", { class: "list" }, S.rules.map(rule => h("div", { class: "item", style: "padding:8px 0" },
-          h("div", { class: "sub", style: "width:44px" }, rule.kind === "app" ? "App" : "Gerät"),
+          h("div", { class: "sub", style: "width:44px" }, t(rule.kind === "app" ? "app" : "device")),
           h("div", { class: "title" }, rule.label + " → " + rule.profile),
-          h("button", { class: "icon", title: "Regel entfernen", "aria-label": "Regel entfernen", onclick: () => { S.rules = S.rules.filter(r => r !== rule); save("rules"); render(); } }, "✕")))) : null));
+          h("button", { class: "icon", title: t("removeRule"), "aria-label": t("removeRule"), onclick: () => { S.rules = S.rules.filter(r => r !== rule); save("rules"); render(); } }, "✕")))) : null));
   }
 
   // ---------- Einstellungen ----------
   function settingsView() {
-    const deviceSelect = h("select", { class: "grow", "aria-label": "Ausgabegerät", onchange: event => { S.outputDevice = event.target.value; save("outputDevice"); } },
-      h("option", { value: "" }, "Systemstandard" + (R.defaultDevice ? " (" + R.defaultDevice + ")" : "")),
+    const deviceSelect = h("select", { class: "grow", "aria-label": t("outputDevice"), onchange: event => { S.outputDevice = event.target.value; save("outputDevice"); } },
+      h("option", { value: "" }, t("systemDefault") + (R.defaultDevice ? " (" + R.defaultDevice + ")" : "")),
       R.devices.map(device => h("option", { value: device.uid }, device.name)));
     deviceSelect.value = R.devices.some(device => device.uid === S.outputDevice) ? S.outputDevice : "";
     return h("div", { class: "stack" },
-      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, "Ausgabe"), h("div", { class: "row" }, deviceSelect),
-        h("div", { class: "muted" }, "Der bearbeitete Ton wird auf diesem Gerät ausgegeben.")),
-      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, "Darstellung"),
-        h("div", { class: "row" }, h("span", { class: "grow" }, "Design"),
-          segmented([["dark", "Dunkel"], ["light", "Hell"]], U.theme, theme => { U.theme = theme; saveUI(); render(); })),
-        h("div", { class: "row" }, h("span", { class: "grow" }, "Akzentfarbe"),
+      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, t("output")), h("div", { class: "row" }, deviceSelect),
+        h("div", { class: "muted" }, t("outputNote"))),
+      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, t("appearance")),
+        h("div", { class: "row" }, h("span", { class: "grow" }, t("language")),
+          h("select", { "aria-label": t("language"), value: S.language || "",
+            onchange: event => { S.language = event.target.value || null; post({ type: "set", key: "language", value: event.target.value }); } },
+            [["", t("languageAuto")]].concat(LANGS.map(code => [code, LANG_NAMES[code]])).map(([value, label]) => h("option", { value }, label)))),
+        h("div", { class: "row" }, h("span", { class: "grow" }, t("theme")),
+          segmented([["dark", t("dark")], ["light", t("light")]], U.theme, theme => { U.theme = theme; saveUI(); render(); })),
+        h("div", { class: "row" }, h("span", { class: "grow" }, t("accent")),
           h("div", { class: "swatches" }, ACCENTS.map(color => h("button", { class: "swatch" + (color === U.accent ? " active" : ""), style: "background:" + color,
-            title: color, "aria-label": "Akzentfarbe " + color, onclick: () => { U.accent = color; saveUI(); render(); } })))),
-        h("div", { class: "row" }, h("span", { class: "grow" }, "Spektrum im Frequenzgang anzeigen"),
-          toggle(U.spectrum, value => { U.spectrum = value; saveUI(); }, "Spektrum anzeigen"))),
-      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, "Allgemein"),
-        h("div", { class: "row" }, h("span", { class: "grow" }, "Bei Anmeldung starten"),
-          toggle(R.launchAtLogin, value => post({ type: "setLaunchAtLogin", value }), "Bei Anmeldung starten")),
-        h("div", { class: "row" }, h("span", { class: "grow muted" }, "Setzt Klang, Mixer, Profile und Presets zurück."),
+            title: color, "aria-label": t("accent") + " " + color, onclick: () => { U.accent = color; saveUI(); render(); } })))),
+        h("div", { class: "row" }, h("span", { class: "grow" }, t("showSpectrumLong")),
+          toggle(U.spectrum, value => { U.spectrum = value; saveUI(); }, t("showSpectrum")))),
+      h("div", { class: "panel pad stack" }, h("h2", { style: "margin:0" }, t("general")),
+        h("div", { class: "row" }, h("span", { class: "grow" }, t("launchAtLogin")),
+          toggle(R.launchAtLogin, value => post({ type: "setLaunchAtLogin", value }), t("launchAtLogin"))),
+        h("div", { class: "row" }, h("span", { class: "grow muted" }, t("resetNote")),
           h("button", { onclick: () => {
             if (!transient.confirmReset) { transient.confirmReset = true; render(); return; }
             transient.confirmReset = false; post({ type: "resetAll" });
-          } }, transient.confirmReset ? "Wirklich alles zurücksetzen?" : "Alles zurücksetzen"),
-          h("button", { onclick: () => post({ type: "quit" }) }, "Beenden"))));
+          } }, transient.confirmReset ? t("resetConfirm") : t("resetAll")),
+          h("button", { onclick: () => post({ type: "quit" }) }, t("quit")))));
   }
   const VIEWS = { eq: eqView, mixer: mixerView, effects: effectsView, profiles: profilesView, settings: settingsView };
 
   // ---------- Rahmen ----------
   function paintHeader() {
+    document.documentElement.lang = lang;
+    for (const [id, key] of [["prevPreset", "prevPreset"], ["nextPreset", "nextPreset"], ["enabled", "toggleApp"]]) {
+      $(id).title = t(key);
+      $(id).setAttribute("aria-label", t(key));
+    }
+    $("enabledLabel").title = t("toggleApp");
     document.body.classList.toggle("off", !S.enabled);
     document.body.classList.toggle("light", U.theme === "light");
     document.body.style.setProperty("--accent", U.accent);
     $("enabled").checked = S.enabled;
-    $("device").textContent = S.enabled ? (R.device || "Kein Ausgabegerät") : "Ausgeschaltet";
+    $("device").textContent = S.enabled ? (R.device || t("noDevice")) : t("off");
     $("device").title = R.device;
     $("error").textContent = R.error;
     $("error").classList.toggle("show", !!R.error);
-    $("presetName").textContent = U.selected[S.sound.eqMode] || "Eigene Einstellung";
+    $("presetName").textContent = presetLabel(S.sound.eqMode, U.selected[S.sound.eqMode]) || t("custom");
   }
   function render() {
     paintHeader();
-    $("tabs").replaceChildren(...TABS.map(([id, label]) => h("button", { class: id === U.tab ? "active" : "", onclick: () => {
+    $("tabs").replaceChildren(...TABS.map(id => h("button", { class: id === U.tab ? "active" : "", onclick: () => {
       U.tab = id; transient.savingPreset = false; transient.confirmReset = false; saveUI(); render();
-    } }, label)));
+    } }, t("tab." + id))));
     const view = $("view"), scroll = view.scrollTop;
     view.replaceChildren((VIEWS[U.tab] || eqView)());
     view.scrollTop = scroll;
@@ -911,12 +1090,13 @@
   $("prevPreset").addEventListener("click", () => stepPreset(-1));
   $("nextPreset").addEventListener("click", () => stepPreset(1));
 
-  window.klang = {
+  window.eq = {
     update(state) {
       const catalog = state.catalog || R.catalog, spectrum = state.running ? R.spectrum : null;
       const busy = !state.force && (pointerDown || isEditing());
       const levels = state.running ? R.levels : { in: 0, out: 0 };
       R = state; R.catalog = catalog; R.spectrum = spectrum; R.levels = levels;
+      if (LANGS.includes(state.language)) lang = state.language;
       if (busy) { S.enabled = state.settings.enabled; paintHeader(); return; }
       S = state.settings;
       U = mergeUI(S.ui);

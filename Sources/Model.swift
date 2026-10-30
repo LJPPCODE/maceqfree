@@ -73,12 +73,17 @@ struct Settings: Codable {
     var autoSwitch = false
     /// Zustand, den nur die Oberfläche versteht (Presets, Design, Tab) als JSON.
     var ui = "{}"
+    /// "de", "en", "it", "es", "fr" oder nil = Systemsprache. Optional, damit
+    /// ältere gespeicherte Einstellungen ohne dieses Feld lesbar bleiben.
+    var language: String?
 
     private static let key = "settings2"
+    /// Bundle-ID aus der Zeit, als die App noch KlangEQ hieß.
+    private static let legacyDomain = "de.leon.klangeq"
 
     static func load() -> Settings {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let settings = try? JSONDecoder().decode(Settings.self, from: data) else { return Settings() }
+        let data = UserDefaults.standard.data(forKey: key) ?? UserDefaults(suiteName: legacyDomain)?.data(forKey: key)
+        guard let data, let settings = try? JSONDecoder().decode(Settings.self, from: data) else { return Settings() }
         return settings
     }
 
@@ -91,7 +96,7 @@ struct Settings: Codable {
 
 enum Log {
     private static let url = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("Logs/KlangEQ.log")
+        .appendingPathComponent("Logs/MacEQfree.log")
 
     static func write(_ message: String) {
         let line = ISO8601DateFormatter().string(from: Date()) + " " + message + "\n"
